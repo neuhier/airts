@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://c0main0scene00000"]
+[gd_scene load_steps=8 format=3 uid="uid://c0main0scene00000"]
 
 [ext_resource type="Script" path="res://scripts/main/main.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/main/touch_input_controller.gd" id="2"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://c0ranged0unit0000" path="res://scenes/units/ranged_unit.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://c0mobile0unit0000" path="res://scenes/units/mobile_unit.tscn" id="5"]
 [ext_resource type="PackedScene" uid="uid://c0headquarters0001" path="res://scenes/structures/headquarters.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://c0gui0overlay00001" path="res://scenes/main/gui.tscn" id="7"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1")
@@ -32,3 +33,5 @@ position = Vector2(120, 180)
 
 [node name="MobileUnit" parent="." instance=ExtResource("5")]
 position = Vector2(120, 220)
+
+[node name="GUI" parent="." instance=ExtResource("7")]

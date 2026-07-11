@@ -1,0 +1,82 @@
+[gd_scene load_steps=2 format=3 uid="uid://c0gui0overlay00001"]
+
+[ext_resource type="Script" path="res://scripts/main/gui.gd" id="1"]
+
+[node name="GUI" type="Control"]
+script = ExtResource("1")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="RefreshTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 0.1
+autostart = true
+
+[node name="Panel" type="PanelContainer" parent="."]
+mouse_filter = 1
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 320.0
+offset_bottom = 356.0
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel"]
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="VBox" type="VBoxContainer" parent="Panel/MarginContainer"]
+
+[node name="ResourceLabel" type="Label" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+text = "Ressourcen: 0"
+
+[node name="HQProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+text = "Melee (50) [x0]"
+
+[node name="RangedProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+text = "Ranged: [Inaktiv]"
+disabled = true
+
+[node name="MobileProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+text = "Mobile: [Inaktiv]"
+disabled = true
+
+[node name="HealerProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+text = "Healer: [Inaktiv]"
+disabled = true
+
+[node name="HSeparator1" type="HSeparator" parent="Panel/MarginContainer/VBox"]
+
+[node name="RangedModuleButton" type="Button" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+text = "Schützen-Anbau bauen (150)"
+
+[node name="MobileModuleButton" type="Button" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+text = "Fuhrpark bauen (200)"
+
+[node name="HealerModuleButton" type="Button" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+text = "Heiler-Heiligtum bauen (175)"
+
+[node name="UpgradeLabButton" type="Button" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+text = "Upgrade-Labor bauen (150)"
+
+[node name="HSeparator2" type="HSeparator" parent="Panel/MarginContainer/VBox"]
+
+[node name="ResearchScroll" type="ScrollContainer" parent="Panel/MarginContainer/VBox"]
+custom_minimum_size = Vector2(0, 140)
+size_flags_vertical = 3
+
+[node name="ResearchButtonsContainer" type="GridContainer" parent="Panel/MarginContainer/VBox/ResearchScroll"]
+unique_name_in_owner = true
+columns = 1
+size_flags_horizontal = 3

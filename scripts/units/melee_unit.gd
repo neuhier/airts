@@ -9,4 +9,5 @@ func _ready() -> void:
 	# Melee-specific defaults; still overridable per-instance in the editor.
 	if attack_range <= 0.0:
 		attack_range = 48.0
+	unit_class_id = "melee"
 	super._ready()

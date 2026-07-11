@@ -19,8 +19,20 @@ enum Team { PLAYER, ENEMY }
 ## Distance to the move target below which the unit is considered "arrived".
 @export var arrival_threshold: float = 4.0
 
+## Identifies this unit's class for the Upgrade-Labor system (e.g. "melee",
+## "ranged", "mobile", "healer"). Set by subclasses in `_ready()` before
+## calling `super._ready()`. Empty string = not upgradeable (e.g. HQ).
+var unit_class_id: String = ""
+
 var hp: float
 var move_target: Vector2
+
+## Design-time base stats, captured before any upgrade multiplier is
+## applied. `UpgradeManager` multipliers are always relative to these, so
+## repeated re-application (retroactive upgrades) never compounds.
+var _base_damage: float
+var _base_max_hp: float
+var _base_move_speed: float
 
 var _attack_timer: float = 0.0
 var _current_target: Unit = null
@@ -37,6 +49,18 @@ signal hp_changed(unit: Unit, hp: float, max_hp: float)
 
 
 func _ready() -> void:
+	_base_damage = damage
+	_base_max_hp = max_hp
+	_base_move_speed = move_speed
+
+	# Newly-produced units start with whatever multipliers have already
+	# been researched for their team/class (baseline application, see
+	# spec 4: "als Basiswert auf alle zukünftig produzierten Einheiten").
+	if unit_class_id != "":
+		damage = _base_damage * UpgradeManager.get_multiplier(team, unit_class_id, UpgradeManager.StatType.DAMAGE)
+		max_hp = _base_max_hp * UpgradeManager.get_multiplier(team, unit_class_id, UpgradeManager.StatType.HP)
+		move_speed = _base_move_speed * UpgradeManager.get_multiplier(team, unit_class_id, UpgradeManager.StatType.SPEED)
+
 	hp = max_hp
 	move_target = global_position
 	add_to_group(_team_group())
@@ -88,6 +112,27 @@ func attack_target(target_unit: Unit) -> void:
 func set_selected(is_selected: bool) -> void:
 	if _selection_ring:
 		_selection_ring.visible = is_selected
+
+
+## Called by `UpgradeManager` when a research order for this unit's
+## class/team completes, applying the (already-cumulative) multiplier
+## retroactively to this specific alive instance. Multipliers are always
+## relative to the unit's original design-time base stat, so calling this
+## multiple times with different multipliers never compounds incorrectly.
+## HP is scaled proportionally on both `max_hp` and current `hp` so a
+## damaged unit keeps the same HP percentage after the upgrade.
+func apply_stat_multiplier(stat: UpgradeManager.StatType, multiplier: float) -> void:
+	match stat:
+		UpgradeManager.StatType.DAMAGE:
+			damage = _base_damage * multiplier
+		UpgradeManager.StatType.HP:
+			var hp_fraction := hp / max_hp if max_hp > 0.0 else 1.0
+			max_hp = _base_max_hp * multiplier
+			hp = max_hp * hp_fraction
+			hp_changed.emit(self, hp, max_hp)
+			_update_hp_bar()
+		UpgradeManager.StatType.SPEED:
+			move_speed = _base_move_speed * multiplier
 
 
 func take_damage(amount: float) -> void:

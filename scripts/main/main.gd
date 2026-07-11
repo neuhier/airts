@@ -5,13 +5,17 @@ extends Node2D
 ## the console (useful for headless/automated verification and for
 ## eyeballing damage numbers during playtesting before a real HUD exists).
 ## Also owns match-end handling: once either HQ is destroyed, the match is
-## paused and the winner is logged.
+## paused and the winner is logged. Instantiates the player's
+## `EconomyController` (the enemy stays passive — HQ income only, no
+## production — per current scope) and binds the GUI overlay to it.
 
 @onready var _dummy: Unit = get_node_or_null("DummyUnit")
 @onready var _player_hq: Headquarters = get_node_or_null("PlayerHQ")
 @onready var _enemy_hq: Headquarters = get_node_or_null("EnemyHQ")
+@onready var _gui: GameGUI = get_node_or_null("GUI")
 
 var _match_over: bool = false
+var player_economy: EconomyController = null
 
 
 func _ready() -> void:
@@ -22,6 +26,13 @@ func _ready() -> void:
 		_player_hq.hq_destroyed.connect(_on_hq_destroyed)
 	if _enemy_hq:
 		_enemy_hq.hq_destroyed.connect(_on_hq_destroyed)
+
+	if _player_hq:
+		player_economy = EconomyController.new()
+		add_child(player_economy)
+		player_economy.setup(Unit.Team.PLAYER, _player_hq)
+		if _gui:
+			_gui.bind_economy(player_economy)
 
 
 func _on_dummy_hp_changed(_unit: Unit, hp: float, max_hp: float) -> void:

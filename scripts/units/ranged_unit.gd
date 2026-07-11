@@ -11,4 +11,5 @@ func _ready() -> void:
 	# Ranged-specific defaults; still overridable per-instance in the editor.
 	if attack_range <= 0.0:
 		attack_range = 160.0
+	unit_class_id = "ranged"
 	super._ready()
