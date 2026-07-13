@@ -9,16 +9,19 @@ extends Node2D
 ## `EconomyController` (the enemy stays passive — HQ income only, no
 ## production — per current scope) and binds the GUI overlay to it.
 
-@onready var _dummy: Unit = get_node_or_null("DummyUnit")
+const DUMMY_UNIT_SCENE := preload("res://scenes/units/dummy_unit.tscn")
+
 @onready var _player_hq: Headquarters = get_node_or_null("PlayerHQ")
 @onready var _enemy_hq: Headquarters = get_node_or_null("EnemyHQ")
 @onready var _gui: GameGUI = get_node_or_null("GUI")
 
+var _dummy: Unit = null
 var _match_over: bool = false
 var player_economy: EconomyController = null
 
 
 func _ready() -> void:
+	_dummy = _spawn_dummy_unit()
 	if _dummy:
 		_dummy.hp_changed.connect(_on_dummy_hp_changed)
 		_dummy.died.connect(_on_dummy_died)
@@ -33,6 +36,32 @@ func _ready() -> void:
 		player_economy.setup(Unit.Team.PLAYER, _player_hq)
 		if _gui:
 			_gui.bind_economy(player_economy)
+
+
+## Instantiates the target dummy at runtime (rather than in main.tscn) so
+## this scene keeps working even if the dummy is ever removed from the
+## saved scene file. Falls back to a bare CharacterBody2D + script if the
+## packed scene is missing, and guarantees a visible placeholder either way.
+func _spawn_dummy_unit() -> Unit:
+	var dummy: Unit
+	if DUMMY_UNIT_SCENE:
+		dummy = DUMMY_UNIT_SCENE.instantiate()
+	else:
+		dummy = CharacterBody2D.new()
+		dummy.set_script(load("res://scripts/units/dummy_unit.gd"))
+
+	if not dummy.get_node_or_null("Silhouette") and not dummy.get_node_or_null("Placeholder"):
+		var placeholder := ColorRect.new()
+		placeholder.name = "Placeholder"
+		placeholder.color = Color(1, 0, 0, 1)
+		placeholder.size = Vector2(32, 32)
+		placeholder.position = Vector2(-16, -16)
+		placeholder.z_index = 10
+		dummy.add_child(placeholder)
+
+	add_child(dummy)
+	dummy.global_position = Vector2(400, 300)
+	return dummy
 
 
 func _on_dummy_hp_changed(_unit: Unit, hp: float, max_hp: float) -> void:

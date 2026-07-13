@@ -36,10 +36,14 @@ var _base_move_speed: float
 
 var _attack_timer: float = 0.0
 var _current_target: Unit = null
+## True from `set_move_target()` until the unit arrives at `move_target`.
+## Overrides auto-target acquisition so a fresh move order isn't immediately
+## re-locked into attacking whatever enemy happens to still be in range.
+var _commanded_move: bool = false
 ## Manually-assigned focus-fire target (via `attack_target()`). Overrides
 ## automatic nearest-target acquisition until it dies/becomes invalid or a
 ## new command (`set_move_target` / `attack_target`) replaces it.
-var _forced_target: Unit = null
+var manual_target: Unit = null
 
 signal died(unit: Unit)
 signal hp_changed(unit: Unit, hp: float, max_hp: float)
@@ -68,17 +72,25 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _forced_target and (not is_instance_valid(_forced_target) or not _forced_target.is_alive()):
-		_forced_target = null
+	if manual_target and (not is_instance_valid(manual_target) or not manual_target.is_alive()):
+		manual_target = null
 
-	if _forced_target:
-		_current_target = _forced_target
-		var dist := global_position.distance_to(_forced_target.global_position)
+	if manual_target:
+		_current_target = manual_target
+		var dist := global_position.distance_to(manual_target.global_position)
 		if dist <= attack_range:
 			velocity = Vector2.ZERO
 			_try_attack(delta)
 		else:
-			_move_towards(_forced_target.global_position)
+			_move_towards(manual_target.global_position)
+	elif _commanded_move:
+		# A fresh move order always takes priority over auto-attack, even
+		# if an enemy is already sitting inside attack_range — otherwise
+		# the unit would instantly re-lock onto it and never move.
+		_current_target = null
+		_move_towards_target()
+		if global_position.distance_to(move_target) <= arrival_threshold:
+			_commanded_move = false
 	else:
 		_current_target = _find_target_in_range()
 		if _current_target:
@@ -95,7 +107,10 @@ func _physics_process(delta: float) -> void:
 ## move command always takes priority.
 func set_move_target(world_position: Vector2) -> void:
 	move_target = world_position
-	_forced_target = null
+	manual_target = null
+	_commanded_move = true
+	_current_target = null
+	_attack_timer = 0.0
 
 
 ## Called by the input layer to focus-fire a specific enemy unit (or HQ),
@@ -103,7 +118,7 @@ func set_move_target(world_position: Vector2) -> void:
 ## target and attacks it exclusively until it dies or a new command
 ## (`set_move_target` / `attack_target`) replaces this order.
 func attack_target(target_unit: Unit) -> void:
-	_forced_target = target_unit
+	manual_target = target_unit
 
 
 ## Toggles the optional `SelectionRing` child node. Purely visual — has no

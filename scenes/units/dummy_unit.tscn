@@ -18,8 +18,9 @@ move_speed = 0.0
 shape = SubResource("CircleShape2D_1")
 
 [node name="Silhouette" type="Polygon2D" parent="."]
-color = Color(1, 0.35, 0.35, 1)
-polygon = PackedVector2Array(-18, -18, 18, -18, 18, 18, -18, 18)
+z_index = 10
+color = Color(1, 0, 0, 1)
+polygon = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
 
 [node name="HPBar" type="ProgressBar" parent="."]
 offset_left = -30.0
