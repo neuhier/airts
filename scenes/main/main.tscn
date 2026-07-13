@@ -12,32 +12,26 @@
 script = ExtResource("1")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(320, 180)
+position = Vector2(500, 400)
 
 [node name="TouchInputController" type="Node2D" parent="."]
 script = ExtResource("2")
 
 [node name="PlayerHQ" parent="." instance=ExtResource("6")]
-position = Vector2(40, 180)
+position = Vector2(500, 400)
 
 [node name="EnemyHQ" parent="." instance=ExtResource("6")]
-position = Vector2(600, 180)
+position = Vector2(950, 400)
 team = 1
 
 [node name="MeleeUnit" parent="." instance=ExtResource("3")]
-position = Vector2(120, 140)
+position = Vector2(580, 360)
 
 [node name="RangedUnit" parent="." instance=ExtResource("4")]
-position = Vector2(120, 180)
+position = Vector2(580, 400)
 
 [node name="MobileUnit" parent="." instance=ExtResource("5")]
-position = Vector2(120, 220)
+position = Vector2(580, 440)
 
 [node name="GUI" parent="." instance=ExtResource("7")]
 layout_mode = 3
-offset_left = 3.0
-offset_top = 4.0
-offset_right = 3.0
-offset_bottom = 4.0
-grow_horizontal = 2
-grow_vertical = 2
