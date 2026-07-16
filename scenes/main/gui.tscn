@@ -39,6 +39,9 @@ text = "Ressourcen: 0"
 unique_name_in_owner = true
 text = "Melee (50) [x0]"
 
+[node name="QueueVisualizer" type="HBoxContainer" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+
 [node name="RangedProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
 unique_name_in_owner = true
 text = "Ranged: [Inaktiv]"

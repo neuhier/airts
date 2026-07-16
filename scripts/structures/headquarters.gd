@@ -31,6 +31,18 @@ func _process(delta: float) -> void:
 		ResourceManager.add(team, income_per_second * delta)
 
 
+## Overrides `Unit._physics_process()` (which unconditionally calls
+## `move_and_slide()`) to a no-op. The HQ never moves, but calling
+## `move_and_slide()` on a stationary `CharacterBody2D` still runs Godot's
+## overlap-recovery step whenever another body intersects its collision
+## shape — which was shoving the HQ itself away ("HQ dragging" glitch) any
+## time a unit walked into it. Skipping physics entirely keeps the HQ's
+## collision shape intact for combat/targeting while freezing its
+## transform, exactly like `DummyUnit` already does.
+func _physics_process(_delta: float) -> void:
+	pass
+
+
 func _die() -> void:
 	hq_destroyed.emit(team)
 	super._die()

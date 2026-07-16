@@ -24,6 +24,10 @@ var _elapsed: float = 0.0
 
 signal item_started(item: Dictionary)
 signal item_completed(item: Dictionary)
+## Emitted when `cancel_queue_item()` removes an item before it completed —
+## callers use this to refund the item's cost (payment is out of scope here,
+## same as `enqueue()`).
+signal item_cancelled(item: Dictionary)
 ## Emitted whenever the queue transitions between empty/non-empty or a new
 ## item becomes the front item — convenient single hook for GUI refreshes.
 signal queue_changed
@@ -58,3 +62,17 @@ func size() -> int:
 
 func is_busy() -> bool:
 	return not queue.is_empty()
+
+
+## Removes the item at `index`. If it was the front (currently building)
+## item, progress resets to 0% so the next item starts fresh rather than
+## inheriting the cancelled item's elapsed time.
+func cancel_queue_item(index: int) -> void:
+	if index < 0 or index >= queue.size():
+		return
+	var item: Dictionary = queue[index]
+	queue.remove_at(index)
+	if index == 0:
+		_elapsed = 0.0
+	item_cancelled.emit(item)
+	queue_changed.emit()

@@ -28,6 +28,7 @@ var economy: EconomyController = null
 
 @onready var _resource_label: Label = %ResourceLabel
 @onready var _hq_button: Button = %HQProduceButton
+@onready var _queue_visualizer: HBoxContainer = %QueueVisualizer
 @onready var _module_unit_buttons: Dictionary = {
 	"ranged": %RangedProduceButton,
 	"mobile": %MobileProduceButton,
@@ -64,7 +65,9 @@ func _ready() -> void:
 ## bind it to the player's economy state — mirrors `EconomyController.setup`.
 func bind_economy(p_economy: EconomyController) -> void:
 	economy = p_economy
+	economy.hq_queue.queue_changed.connect(func(): update_queue_ui(economy.get_hq_queue()))
 	_refresh()
+	update_queue_ui(economy.get_hq_queue())
 
 
 func _build_research_buttons() -> void:
@@ -79,7 +82,7 @@ func _refresh() -> void:
 	if economy == null:
 		return
 
-	_resource_label.text = "Ressourcen: %.0f" % economy.get_resources()
+	_resource_label.text = "Ressourcen: %.0f (+%.1f/s)" % [economy.get_resources(), economy.get_total_income_rate()]
 
 	_refresh_hq_button()
 	for unit_class_id in _module_unit_buttons:
@@ -90,6 +93,27 @@ func _refresh() -> void:
 
 	for research_id in _research_buttons:
 		_refresh_research_button(research_id)
+
+
+## Rebuilds the queue-slot buttons (one per queued item) from scratch.
+## Each button shows a minimalist letter icon for its unit class and, when
+## clicked, cancels that specific queue slot (refunding its cost).
+func update_queue_ui(current_queue: Array) -> void:
+	for child in _queue_visualizer.get_children():
+		child.queue_free()
+	for index in current_queue.size():
+		var item: Dictionary = current_queue[index]
+		var unit_class_id: String = item.get("unit_class_id", "")
+		var slot := Button.new()
+		slot.text = unit_class_id.substr(0, 1).to_upper()
+		slot.custom_minimum_size = Vector2(28, 28)
+		slot.tooltip_text = "%s — Klicken zum Abbrechen" % UNIT_LABELS.get(unit_class_id, unit_class_id)
+		slot.pressed.connect(_on_queue_item_clicked.bind(index))
+		_queue_visualizer.add_child(slot)
+
+
+func _on_queue_item_clicked(index: int) -> void:
+	economy.cancel_hq_queue_item(index)
 
 
 func _refresh_hq_button() -> void:

@@ -18,6 +18,7 @@ const DUMMY_UNIT_SCENE := preload("res://scenes/units/dummy_unit.tscn")
 var _dummy: Unit = null
 var _match_over: bool = false
 var player_economy: EconomyController = null
+var enemy_economy: EconomyController = null
 
 
 func _ready() -> void:
@@ -36,6 +37,15 @@ func _ready() -> void:
 		player_economy.setup(Unit.Team.PLAYER, _player_hq)
 		if _gui:
 			_gui.bind_economy(player_economy)
+
+	# Enemy gets its own controller too so it collects territory-based
+	# passive income symmetrically. It never queues production (nothing
+	# calls try_produce_*/try_build_module/try_queue_research on it), so
+	# this is purely the income side, matching current scope.
+	if _enemy_hq:
+		enemy_economy = EconomyController.new()
+		add_child(enemy_economy)
+		enemy_economy.setup(Unit.Team.ENEMY, _enemy_hq)
 
 
 ## Instantiates the target dummy at runtime (rather than in main.tscn) so

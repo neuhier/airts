@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://c26xrkhd73egl"]
+[gd_scene load_steps=9 format=3 uid="uid://c26xrkhd73egl"]
 
 [ext_resource type="Script" path="res://scripts/main/main.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/main/touch_input_controller.gd" id="2"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://e0eh5cq5fl0b" path="res://scenes/units/mobile_unit.tscn" id="5"]
 [ext_resource type="PackedScene" uid="uid://bkpb5yeff5gr5" path="res://scenes/structures/headquarters.tscn" id="6"]
 [ext_resource type="PackedScene" uid="uid://cl4xcc8qgh537" path="res://scenes/main/gui.tscn" id="7"]
+[ext_resource type="Script" path="res://scripts/main/territory_visualizer.gd" id="8"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1")
@@ -16,6 +17,9 @@ position = Vector2(500, 400)
 
 [node name="TouchInputController" type="Node2D" parent="."]
 script = ExtResource("2")
+
+[node name="TerritoryVisualizer" type="Node2D" parent="."]
+script = ExtResource("8")
 
 [node name="PlayerHQ" parent="." instance=ExtResource("6")]
 position = Vector2(500, 400)
