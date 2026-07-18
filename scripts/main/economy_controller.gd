@@ -177,8 +177,11 @@ const _SPAWN_JITTER_SPREAD := 20.0
 func _spawn_position() -> Vector2:
 	if hq == null:
 		return Vector2.ZERO
-	var direction := Vector2(1, 0) if team == Unit.Team.PLAYER else Vector2(-1, 0)
-	var base_offset := direction * _MIN_SPAWN_DISTANCE_FROM_HQ + Vector2(0, 30)
+	# Player HQ sits at the bottom, Enemy HQ at the top (see main.tscn) —
+	# spawn units toward the map's center (up from Player HQ, down from
+	# Enemy HQ) so they walk onto the battlefield instead of off the edge.
+	var direction := Vector2(0, -1) if team == Unit.Team.PLAYER else Vector2(0, 1)
+	var base_offset := direction * _MIN_SPAWN_DISTANCE_FROM_HQ + Vector2(30, 0)
 	# Random jitter so simultaneously-spawned units don't overlap exactly
 	# (which would fling them apart), without ever landing back inside the
 	# HQ's own collision shape.

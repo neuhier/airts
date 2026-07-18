@@ -13,7 +13,7 @@ const DUMMY_UNIT_SCENE := preload("res://scenes/units/dummy_unit.tscn")
 
 @onready var _player_hq: Headquarters = get_node_or_null("PlayerHQ")
 @onready var _enemy_hq: Headquarters = get_node_or_null("EnemyHQ")
-@onready var _gui: GameGUI = get_node_or_null("GUI")
+@onready var _gui: GameGUI = get_node_or_null("GUILayer/GUI")
 
 var _dummy: Unit = null
 var _match_over: bool = false

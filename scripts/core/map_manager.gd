@@ -10,17 +10,19 @@ class_name MapManager
 
 enum TerrainType { GROUND, MOUNTAIN, OBSTACLE }
 
-const MAP_WIDTH := 40
-const MAP_HEIGHT := 40
+## 3:2 vertical aspect ratio (taller than wide) — Player spawns at the
+## bottom, Enemy at the top, mirrored across the horizontal midline.
+const MAP_WIDTH := 60
+const MAP_HEIGHT := 90
 ## World-space size of one grid cell — must match the scale units actually
 ## move at (see `main.tscn`'s 1000x800 play area) for grid lookups from
 ## `global_position` to line up with the generated terrain.
 const TILE_SIZE := 25.0
 
-## HQ spawn columns (extreme left / mirrored extreme right) forced to
-## GROUND regardless of noise, so a base never generates inside an
-## impassable obstacle or a slowing mountain.
-const _BASE_CLEAR_COLUMNS := 3
+## HQ spawn rows (extreme top / mirrored extreme bottom) forced to GROUND
+## regardless of noise, so a base never generates inside an impassable
+## obstacle or a slowing mountain.
+const _BASE_CLEAR_ROWS := 3
 
 static var map_grid: Dictionary = {}  # Vector2i -> TerrainType
 static var _generated: bool = false
@@ -44,11 +46,11 @@ static func generate(seed_value: int = 0, force: bool = false) -> void:
 	# appear.
 	noise.frequency = 0.15
 
-	for x in range(MAP_WIDTH / 2):
-		for y in range(MAP_HEIGHT):
+	for y in range(MAP_HEIGHT / 2):
+		for x in range(MAP_WIDTH):
 			var sampled := _sample_terrain(noise, x, y)
 			var pos := Vector2i(x, y)
-			var mirrored_pos := Vector2i(MAP_WIDTH - 1 - x, y)
+			var mirrored_pos := Vector2i(x, MAP_HEIGHT - 1 - y)
 			map_grid[pos] = sampled
 			map_grid[mirrored_pos] = sampled
 
@@ -66,10 +68,10 @@ static func _sample_terrain(noise: FastNoiseLite, x: int, y: int) -> TerrainType
 
 
 static func _force_clear_base_columns() -> void:
-	for x in range(_BASE_CLEAR_COLUMNS):
-		for y in range(MAP_HEIGHT):
+	for y in range(_BASE_CLEAR_ROWS):
+		for x in range(MAP_WIDTH):
 			map_grid[Vector2i(x, y)] = TerrainType.GROUND
-			map_grid[Vector2i(MAP_WIDTH - 1 - x, y)] = TerrainType.GROUND
+			map_grid[Vector2i(x, MAP_HEIGHT - 1 - y)] = TerrainType.GROUND
 
 
 ## Converts a world-space position (e.g. `unit.global_position`) to the
