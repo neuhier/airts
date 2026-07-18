@@ -56,6 +56,7 @@ func _ready() -> void:
 	_base_damage = damage
 	_base_max_hp = max_hp
 	_base_move_speed = move_speed
+	_base_attack_range = attack_range
 
 	# Newly-produced units start with whatever multipliers have already
 	# been researched for their team/class (baseline application, see
@@ -71,7 +72,20 @@ func _ready() -> void:
 	_update_hp_bar()
 
 
+## Mountain terrain modifiers, applied/removed live as a unit crosses tile
+## boundaries (see `_apply_terrain_modifiers()`), always relative to the
+## unit's current design-time base stats — so they compose correctly with
+## `UpgradeManager` multipliers instead of overwriting them.
+const _MOUNTAIN_SPEED_MULTIPLIER := 0.6
+const _MOUNTAIN_ATTACK_RANGE_BONUS := 150.0
+
+var _base_attack_range: float
+var _on_mountain: bool = false
+
+
 func _physics_process(delta: float) -> void:
+	_apply_terrain_modifiers()
+
 	if manual_target and (not is_instance_valid(manual_target) or not manual_target.is_alive()):
 		manual_target = null
 
@@ -192,6 +206,22 @@ func _try_attack(delta: float) -> void:
 		_current_target.take_damage(damage)
 
 
+## Checks the terrain tile the unit currently stands on and toggles the
+## mountain speed penalty / range bonus accordingly. Cheap no-op when
+## nothing changed (`_on_mountain` only flips at tile-boundary crossings).
+func _apply_terrain_modifiers() -> void:
+	var is_mountain := MapManager.get_terrain_at(global_position) == MapManager.TerrainType.MOUNTAIN
+	if is_mountain == _on_mountain:
+		return
+	_on_mountain = is_mountain
+	if is_mountain:
+		move_speed = _base_move_speed * _MOUNTAIN_SPEED_MULTIPLIER
+		attack_range = _base_attack_range + _MOUNTAIN_ATTACK_RANGE_BONUS
+	else:
+		move_speed = _base_move_speed
+		attack_range = _base_attack_range
+
+
 func _move_towards_target() -> void:
 	_move_towards(move_target)
 
@@ -201,7 +231,15 @@ func _move_towards(destination: Vector2) -> void:
 	if to_target.length() <= arrival_threshold:
 		velocity = Vector2.ZERO
 		return
-	velocity = to_target.normalized() * move_speed
+	var direction := to_target.normalized()
+	# OBSTACLE tiles are impassable: stop short instead of walking into one.
+	# Checked a tile-width ahead (rather than one physics step ahead) so the
+	# unit visibly halts at the obstacle's edge instead of clipping into it.
+	var probe := global_position + direction * MapManager.TILE_SIZE
+	if MapManager.get_terrain_at(probe) == MapManager.TerrainType.OBSTACLE:
+		velocity = Vector2.ZERO
+		return
+	velocity = direction * move_speed
 
 
 func _update_hp_bar() -> void:
