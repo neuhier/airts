@@ -34,6 +34,14 @@ var _base_damage: float
 var _base_max_hp: float
 var _base_move_speed: float
 
+## Current pathfound waypoints (world-space) toward whatever destination
+## `_move_towards()` was last called with. Recomputed whenever the
+## destination changes or the next waypoint is reached, so units route
+## around OBSTACLE cells and prefer GROUND over MOUNTAIN instead of
+## walking in a straight line through terrain.
+var _path: PackedVector2Array = PackedVector2Array()
+var _path_destination: Vector2 = Vector2.ZERO
+
 var _attack_timer: float = 0.0
 var _current_target: Unit = null
 ## True from `set_move_target()` until the unit arrives at `move_target`.
@@ -227,19 +235,25 @@ func _move_towards_target() -> void:
 
 
 func _move_towards(destination: Vector2) -> void:
-	var to_target := destination - global_position
-	if to_target.length() <= arrival_threshold:
+	if destination.distance_to(_path_destination) > arrival_threshold or _path.is_empty():
+		_path = MapManager.find_path(global_position, destination)
+		_path_destination = destination
+
+	# Drop waypoints the unit has already reached (including a stale first
+	# waypoint at/near its own current position).
+	while _path.size() > 0 and global_position.distance_to(_path[0]) <= arrival_threshold:
+		_path.remove_at(0)
+
+	if _path.is_empty():
 		velocity = Vector2.ZERO
 		return
-	var direction := to_target.normalized()
-	# OBSTACLE tiles are impassable: stop short instead of walking into one.
-	# Checked a tile-width ahead (rather than one physics step ahead) so the
-	# unit visibly halts at the obstacle's edge instead of clipping into it.
-	var probe := global_position + direction * MapManager.TILE_SIZE
-	if MapManager.get_terrain_at(probe) == MapManager.TerrainType.OBSTACLE:
+
+	var to_waypoint := _path[0] - global_position
+	if to_waypoint.length() <= arrival_threshold and _path.size() == 1 and destination.distance_to(_path_destination) <= arrival_threshold:
+		# Final waypoint reached and it matches the commanded destination.
 		velocity = Vector2.ZERO
 		return
-	velocity = direction * move_speed
+	velocity = to_waypoint.normalized() * move_speed
 
 
 func _update_hp_bar() -> void:

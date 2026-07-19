@@ -88,7 +88,15 @@ disown
 
 sleep 6
 if pgrep -f "godot4 -e" > /dev/null 2>&1; then
-	echo "== Godot editor is running. Open the noVNC URL, then press F5 to play. =="
+	echo "== Godot editor is running. =="
+	if command -v gitpod > /dev/null 2>&1; then
+		echo "Opening noVNC in your browser..."
+		gitpod environment port preview "$NOVNC_PORT" || \
+			echo "Could not auto-open the browser — open the noVNC URL manually."
+	else
+		echo "Open the noVNC URL manually (gitpod CLI not found)."
+	fi
+	echo "Once open, press F5 in the Godot editor to play."
 else
 	echo "== Godot editor did not start — check /tmp/godot.log for details. =="
 fi

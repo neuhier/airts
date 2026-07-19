@@ -27,6 +27,13 @@ const _BASE_CLEAR_ROWS := 3
 static var map_grid: Dictionary = {}  # Vector2i -> TerrainType
 static var _generated: bool = false
 
+## Terrain weight scale applied to MOUNTAIN cells — pathfinding treats
+## crossing a mountain tile as this many times more "expensive" than
+## GROUND, so it's preferred only when it's meaningfully shorter.
+const _MOUNTAIN_WEIGHT_SCALE := 2.5
+
+static var astar := AStarGrid2D.new()
+
 
 ## Generates (once) the mirrored terrain grid. Safe to call multiple times
 ## — subsequent calls are no-ops unless `force` is true (used by headless
@@ -56,6 +63,7 @@ static func generate(seed_value: int = 0, force: bool = false) -> void:
 
 	_force_clear_base_columns()
 	_generated = true
+	setup_pathfinding()
 
 
 static func _sample_terrain(noise: FastNoiseLite, x: int, y: int) -> TerrainType:
@@ -74,10 +82,63 @@ static func _force_clear_base_columns() -> void:
 			map_grid[Vector2i(x, MAP_HEIGHT - 1 - y)] = TerrainType.GROUND
 
 
+## Builds `astar` from the current `map_grid`: OBSTACLE cells are marked
+## solid (impassable), MOUNTAIN cells get a higher weight scale so a path
+## avoids them unless the detour would be longer, GROUND is left at the
+## default weight.
+static func setup_pathfinding() -> void:
+	astar.region = Rect2i(0, 0, MAP_WIDTH, MAP_HEIGHT)
+	astar.cell_size = Vector2(TILE_SIZE, TILE_SIZE)
+	astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_EUCLIDEAN
+	astar.default_estimate_heuristic = AStarGrid2D.HEURISTIC_EUCLIDEAN
+	astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
+	astar.update()
+
+	for x in range(MAP_WIDTH):
+		for y in range(MAP_HEIGHT):
+			var pos := Vector2i(x, y)
+			var terrain: TerrainType = map_grid.get(pos, TerrainType.GROUND)
+			match terrain:
+				TerrainType.OBSTACLE:
+					astar.set_point_solid(pos, true)
+				TerrainType.MOUNTAIN:
+					astar.set_point_weight_scale(pos, _MOUNTAIN_WEIGHT_SCALE)
+				TerrainType.GROUND:
+					astar.set_point_weight_scale(pos, 1.0)
+
+
 ## Converts a world-space position (e.g. `unit.global_position`) to the
 ## grid cell it falls in.
 static func world_to_grid(world_position: Vector2) -> Vector2i:
 	return Vector2i(int(floor(world_position.x / TILE_SIZE)), int(floor(world_position.y / TILE_SIZE)))
+
+
+## Waypoint list (world-space) from `from_world` to `to_world`, routed
+## around OBSTACLE cells and preferring GROUND over MOUNTAIN via `astar`'s
+## weight scale. Falls back to a direct line if either endpoint sits
+## outside the grid or on a solid cell (e.g. a unit standing exactly on an
+## obstacle's edge) so units never get permanently stuck with no path at
+## all.
+## Named `find_path` rather than `get_path` — the latter collides with
+## `Resource.get_path()` (inherited by every script/class, including this
+## one via RefCounted), which Godot resolves first and would raise
+## "Invalid call to function 'get_path'" since that builtin takes no args.
+static func find_path(from_world: Vector2, to_world: Vector2) -> PackedVector2Array:
+	if not _generated:
+		generate()
+	var from_id := world_to_grid(from_world)
+	var to_id := world_to_grid(to_world)
+	if not astar.is_in_boundsv(from_id) or not astar.is_in_boundsv(to_id) \
+			or astar.is_point_solid(from_id) or astar.is_point_solid(to_id):
+		return PackedVector2Array([to_world])
+	var path := astar.get_point_path(from_id, to_id)
+	# AStarGrid2D waypoints are grid-cell centers, so the final one is only
+	# approximately `to_world`. Snap it to the exact requested destination
+	# so units actually arrive where commanded rather than stopping short
+	# by up to half a tile.
+	if path.size() > 0:
+		path[path.size() - 1] = to_world
+	return path
 
 
 ## Terrain at `world_position`, defaulting to GROUND for any position
