@@ -6,8 +6,9 @@ extends Node2D
 ## eyeballing damage numbers during playtesting before a real HUD exists).
 ## Also owns match-end handling: once either HQ is destroyed, the match is
 ## paused and the winner is logged. Instantiates the player's
-## `EconomyController` (the enemy stays passive — HQ income only, no
-## production — per current scope) and binds the GUI overlay to it.
+## `EconomyController` and binds the GUI overlay to it. The Enemy team
+## gets its own `EconomyController` plus an `EnemyAiController` driving it
+## — the Enemy is always AI-controlled, there is no PvP/second-player mode.
 
 const DUMMY_UNIT_SCENE := preload("res://scenes/units/dummy_unit.tscn")
 
@@ -46,6 +47,14 @@ func _ready() -> void:
 		enemy_economy = EconomyController.new()
 		add_child(enemy_economy)
 		enemy_economy.setup(Unit.Team.ENEMY, _enemy_hq)
+
+		# The Enemy team is always AI-controlled — there is no way to play
+		# as Enemy in this build, so wiring the AI here (rather than as an
+		# optional node in main.tscn) guarantees every match has an active
+		# opponent instead of a passive one.
+		var enemy_ai := EnemyAiController.new()
+		add_child(enemy_ai)
+		enemy_ai.enemy_economy = enemy_economy
 
 
 ## Instantiates the target dummy at runtime (rather than in main.tscn) so

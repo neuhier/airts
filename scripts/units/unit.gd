@@ -18,6 +18,11 @@ enum Team { PLAYER, ENEMY }
 @export var move_speed: float = 150.0
 ## Distance to the move target below which the unit is considered "arrived".
 @export var arrival_threshold: float = 4.0
+## Radius within which an idle unit (no manual command in progress)
+## automatically notices and pursues the nearest enemy, even if that enemy
+## is currently outside `attack_range`. Independent of `attack_range` so
+## units can "aggro" from further away than they can actually hit.
+@export var aggro_range: float = 200.0
 
 ## Identifies this unit's class for the Upgrade-Labor system (e.g. "melee",
 ## "ranged", "mobile", "healer"). Set by subclasses in `_ready()` before
@@ -119,7 +124,14 @@ func _physics_process(delta: float) -> void:
 			velocity = Vector2.ZERO
 			_try_attack(delta)
 		else:
-			_move_towards_target()
+			# Nothing in attack range — check for a nearby enemy to
+			# automatically aggro and chase, otherwise idle at move_target.
+			var aggro_target := _find_nearest_enemy_in_range(aggro_range)
+			if aggro_target:
+				_current_target = aggro_target
+				_move_towards(aggro_target.global_position)
+			else:
+				_move_towards_target()
 	move_and_slide()
 
 
@@ -127,6 +139,15 @@ func _physics_process(delta: float) -> void:
 ## new world position. Cancels the current attack lock so the unit starts
 ## moving immediately. Also cancels any manual focus-fire target — a fresh
 ## move command always takes priority.
+## True while the unit has no player/AI-issued command in progress (no
+## active move order, no manual attack-target). Used by `EnemyAiController`
+## to find units it's free to group into an assault squad — a unit that's
+## mid-command or auto-chasing an aggro target isn't "idle" even though
+## nothing set an explicit state machine field for it.
+func is_idle() -> bool:
+	return not _commanded_move and manual_target == null
+
+
 func set_move_target(world_position: Vector2) -> void:
 	move_target = world_position
 	manual_target = null
@@ -196,12 +217,19 @@ func _enemy_group() -> String:
 
 ## Nearest living enemy within attack_range, or null if none is in reach.
 func _find_target_in_range() -> Unit:
+	return _find_nearest_enemy_in_range(attack_range)
+
+
+## Nearest living enemy within `radius`, or null if none is that close.
+## Shared by both auto-attack (`attack_range`) and auto-aggro
+## (`aggro_range`) since they're the same "closest enemy within X" query.
+func _find_nearest_enemy_in_range(radius: float) -> Unit:
 	var nearest: Unit = null
 	var nearest_dist := INF
 	for node in get_tree().get_nodes_in_group(_enemy_group()):
 		if node is Unit and node != self and node.is_alive():
 			var dist := global_position.distance_to(node.global_position)
-			if dist <= attack_range and dist < nearest_dist:
+			if dist <= radius and dist < nearest_dist:
 				nearest = node
 				nearest_dist = dist
 	return nearest
