@@ -45,6 +45,34 @@ const RESEARCH_CONFIG := {
 	"healer_speed": {"cost": 80.0, "duration": 8.0, "unit_class_id": "healer", "stat": UpgradeManager.StatType.SPEED, "bonus": 0.15, "label": "Healer Tempo (+15%)"},
 }
 
+## BalanceManager-backed cost/duration lookups, with `UNIT_CONFIG` as the
+## fallback default (so a missing/partial user://balance.json degrades to
+## these hardcoded values rather than breaking production).
+func _unit_cost(unit_class_id: String) -> float:
+	var value: Variant = BalanceManager.get_unit_value(unit_class_id, "cost", UNIT_CONFIG[unit_class_id].cost)
+	return value as float
+
+
+func _unit_duration(unit_class_id: String) -> float:
+	var value: Variant = BalanceManager.get_unit_value(unit_class_id, "duration", UNIT_CONFIG[unit_class_id].duration)
+	return value as float
+
+
+func _building_cost(building_id: String) -> float:
+	var value: Variant = BalanceManager.get_building_value(building_id, "cost", MODULE_CONFIG[building_id].cost)
+	return value as float
+
+
+func _research_cost(research_id: String) -> float:
+	var value: Variant = BalanceManager.get_research_value(research_id, "cost", RESEARCH_CONFIG[research_id].cost)
+	return value as float
+
+
+func _research_duration(research_id: String) -> float:
+	var value: Variant = BalanceManager.get_research_value(research_id, "duration", RESEARCH_CONFIG[research_id].duration)
+	return value as float
+
+
 var team: Unit.Team = Unit.Team.PLAYER
 var hq: Headquarters = null
 
@@ -85,8 +113,10 @@ var territory_income_rate: float = 0.0
 func _process(delta: float) -> void:
 	var units := get_tree().get_nodes_in_group("team_player" if team == Unit.Team.PLAYER else "team_enemy")
 	var area := get_units_polygon_area(units)
-	var share: float = clamp(area / MAX_TERRITORY_AREA, 0.0, 1.0)
-	territory_income_rate = TERRITORY_INCOME_POOL * share
+	var max_area: float = BalanceManager.get_global_value("max_territory_area", MAX_TERRITORY_AREA)
+	var income_pool: float = BalanceManager.get_global_value("territory_income_pool", TERRITORY_INCOME_POOL)
+	var share: float = clamp(area / max_area, 0.0, 1.0)
+	territory_income_rate = income_pool * share
 	ResourceManager.add(team, territory_income_rate * delta)
 
 
@@ -139,10 +169,9 @@ func try_produce_module_unit(unit_class_id: String) -> bool:
 
 
 func _try_enqueue_unit(queue: TimedQueue, unit_class_id: String) -> bool:
-	var config: Dictionary = UNIT_CONFIG[unit_class_id]
-	if not ResourceManager.try_spend(team, config.cost):
+	if not ResourceManager.try_spend(team, _unit_cost(unit_class_id)):
 		return false
-	queue.enqueue({"duration": config.duration, "unit_class_id": unit_class_id})
+	queue.enqueue({"duration": _unit_duration(unit_class_id), "unit_class_id": unit_class_id})
 	return true
 
 
@@ -151,8 +180,7 @@ func _on_unit_item_completed(item: Dictionary) -> void:
 
 
 func _on_unit_item_cancelled(item: Dictionary) -> void:
-	var config: Dictionary = UNIT_CONFIG[item.get("unit_class_id")]
-	ResourceManager.add(team, config.cost)
+	ResourceManager.add(team, _unit_cost(item.get("unit_class_id")))
 
 
 func _spawn_unit(unit_class_id: String) -> void:
@@ -202,7 +230,7 @@ func try_build_module(module_id: String) -> bool:
 	if is_module_built(module_id):
 		return false
 	var config: Dictionary = MODULE_CONFIG[module_id]
-	if not ResourceManager.try_spend(team, config.cost):
+	if not ResourceManager.try_spend(team, _building_cost(module_id)):
 		return false
 	unlocked_modules[module_id] = true
 
@@ -238,10 +266,10 @@ func try_queue_research(research_id: String) -> bool:
 	if not is_lab_built():
 		return false
 	var config: Dictionary = RESEARCH_CONFIG[research_id]
-	if not ResourceManager.try_spend(team, config.cost):
+	if not ResourceManager.try_spend(team, _research_cost(research_id)):
 		return false
 	lab_queue.enqueue({
-		"duration": config.duration,
+		"duration": _research_duration(research_id),
 		"unit_class_id": config.unit_class_id,
 		"stat": config.stat,
 		"bonus": config.bonus,
@@ -255,8 +283,7 @@ func _on_research_item_completed(item: Dictionary) -> void:
 
 
 func _on_research_item_cancelled(item: Dictionary) -> void:
-	var config: Dictionary = RESEARCH_CONFIG[item.get("research_id")]
-	ResourceManager.add(team, config.cost)
+	ResourceManager.add(team, _research_cost(item.get("research_id")))
 
 
 # --- Read-only state for the GUI -------------------------------------------
@@ -296,12 +323,12 @@ func get_lab_queue_size() -> int:
 
 
 func can_afford_unit(unit_class_id: String) -> bool:
-	return ResourceManager.can_afford(team, UNIT_CONFIG[unit_class_id].cost)
+	return ResourceManager.can_afford(team, _unit_cost(unit_class_id))
 
 
 func can_afford_module(module_id: String) -> bool:
-	return ResourceManager.can_afford(team, MODULE_CONFIG[module_id].cost)
+	return ResourceManager.can_afford(team, _building_cost(module_id))
 
 
 func can_afford_research(research_id: String) -> bool:
-	return ResourceManager.can_afford(team, RESEARCH_CONFIG[research_id].cost)
+	return ResourceManager.can_afford(team, _research_cost(research_id))

@@ -1,0 +1,32 @@
+{
+	"global": {
+		"territory_income_pool": 100.0,
+		"max_territory_area": 600000.0
+	},
+	"units": {
+		"melee": {"cost": 50.0, "duration": 4.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0},
+		"ranged": {"cost": 75.0, "duration": 6.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0},
+		"mobile": {"cost": 90.0, "duration": 8.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0},
+		"healer": {"cost": 80.0, "duration": 7.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0}
+	},
+	"buildings": {
+		"ranged_module": {"cost": 150.0, "label": "Schützen-Anbau"},
+		"mobile_module": {"cost": 200.0, "label": "Fuhrpark"},
+		"healer_module": {"cost": 175.0, "label": "Heiler-Heiligtum"},
+		"upgrade_lab": {"cost": 150.0, "label": "Upgrade-Labor"}
+	},
+	"research": {
+		"melee_damage": {"cost": 100.0, "duration": 10.0},
+		"melee_hp": {"cost": 120.0, "duration": 12.0},
+		"melee_speed": {"cost": 80.0, "duration": 8.0},
+		"ranged_damage": {"cost": 100.0, "duration": 10.0},
+		"ranged_hp": {"cost": 120.0, "duration": 12.0},
+		"ranged_speed": {"cost": 80.0, "duration": 8.0},
+		"mobile_damage": {"cost": 100.0, "duration": 10.0},
+		"mobile_hp": {"cost": 120.0, "duration": 12.0},
+		"mobile_speed": {"cost": 80.0, "duration": 8.0},
+		"healer_damage": {"cost": 100.0, "duration": 10.0},
+		"healer_hp": {"cost": 120.0, "duration": 12.0},
+		"healer_speed": {"cost": 80.0, "duration": 8.0}
+	}
+}

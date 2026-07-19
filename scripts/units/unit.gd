@@ -25,6 +25,11 @@ const TEAM_COLORS := {
 @export var attack_range: float = 48.0
 @export var attack_cooldown: float = 1.0
 @export var move_speed: float = 150.0
+## Flat damage reduction applied to every incoming hit (see `take_damage()`).
+## Sourced from `BalanceManager` per unit_class_id in `_ready()`, same as
+## move_speed/max_hp/damage — this `@export` value is only the design-time
+## default/fallback.
+@export var armor: float = 0.0
 ## Distance to the move target below which the unit is considered "arrived".
 @export var arrival_threshold: float = 4.0
 ## Radius within which an idle unit (no manual command in progress)
@@ -78,6 +83,19 @@ signal hp_changed(unit: Unit, hp: float, max_hp: float)
 func _ready() -> void:
 	if _silhouette:
 		_silhouette.color = TEAM_COLORS[team]
+
+	# Balance-sourced stats: overwrites the @export design-time defaults
+	# with BalanceManager's data before _base_* is captured below, so both
+	# UpgradeManager's multipliers and the terrain speed/range modifiers
+	# end up relative to the balance-driven baseline rather than the old
+	# hardcoded one. Each @export value is passed through as that lookup's
+	# own fallback, so a missing/partial balance file degrades gracefully
+	# instead of zeroing out a stat.
+	if unit_class_id != "":
+		move_speed = BalanceManager.get_unit_value(unit_class_id, "move_speed", move_speed) as float
+		max_hp = BalanceManager.get_unit_value(unit_class_id, "max_hp", max_hp) as float
+		damage = BalanceManager.get_unit_value(unit_class_id, "damage", damage) as float
+		armor = BalanceManager.get_unit_value(unit_class_id, "armor", armor) as float
 
 	_base_damage = damage
 	_base_max_hp = max_hp
@@ -209,7 +227,8 @@ func apply_stat_multiplier(stat: UpgradeManager.StatType, multiplier: float) -> 
 func take_damage(amount: float) -> void:
 	if not is_alive():
 		return
-	hp = max(hp - amount, 0.0)
+	var mitigated: float = max(amount - armor, 0.0)
+	hp = max(hp - mitigated, 0.0)
 	hp_changed.emit(self, hp, max_hp)
 	_update_hp_bar()
 	if hp <= 0.0:
