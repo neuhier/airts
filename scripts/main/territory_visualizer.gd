@@ -4,8 +4,9 @@ class_name TerritoryVisualizer
 ## semi-transparent polygon, mirroring `EconomyController.get_units_polygon_area()`
 ## so the visual matches exactly what passive income is computed from.
 
-@export var player_color := Color(0.0, 0.5, 1.0, 0.15)
-@export var enemy_color := Color(1.0, 0.1, 0.1, 0.15)
+## Territory-fill alpha — kept separate from `Unit.TEAM_COLORS`' opaque
+## unit/HQ color so the map underneath a claimed area stays legible.
+const _TERRITORY_ALPHA := 0.15
 
 
 func _process(_delta: float) -> void:
@@ -13,8 +14,14 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
-	draw_team_territory(Unit.Team.PLAYER, player_color)
-	draw_team_territory(Unit.Team.ENEMY, enemy_color)
+	draw_team_territory(Unit.Team.PLAYER, _team_territory_color(Unit.Team.PLAYER))
+	draw_team_territory(Unit.Team.ENEMY, _team_territory_color(Unit.Team.ENEMY))
+
+
+func _team_territory_color(team: Unit.Team) -> Color:
+	var color: Color = Unit.TEAM_COLORS[team]
+	color.a = _TERRITORY_ALPHA
+	return color
 
 
 func draw_team_territory(team: Unit.Team, color: Color) -> void:
