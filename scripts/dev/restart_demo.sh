@@ -23,6 +23,19 @@ DISPLAY_NUM=":99"
 VNC_PORT=5900
 NOVNC_PORT=6080
 
+REQUIRED_COMMANDS=(Xvfb xdpyinfo fluxbox x11vnc websockify godot4)
+missing_commands=()
+for command_name in "${REQUIRED_COMMANDS[@]}"; do
+	if ! command -v "$command_name" > /dev/null 2>&1; then
+		missing_commands+=("$command_name")
+	fi
+done
+if (( ${#missing_commands[@]} > 0 )); then
+	echo "Missing required commands: ${missing_commands[*]}" >&2
+	echo "Install the Godot and noVNC runtime dependencies before restarting the demo." >&2
+	exit 1
+fi
+
 is_running() {
 	pgrep -f "$1" > /dev/null 2>&1
 }
@@ -55,7 +68,7 @@ fi
 # 3. VNC server
 if ! is_running "x11vnc -display $DISPLAY_NUM"; then
 	echo "Starting x11vnc on port $VNC_PORT..."
-	nohup setsid x11vnc -display "$DISPLAY_NUM" -forever -shared -nopw -rfbport "$VNC_PORT" -quiet > /tmp/x11vnc.log 2>&1 &
+	nohup setsid x11vnc -display "$DISPLAY_NUM" -noshm -forever -shared -nopw -rfbport "$VNC_PORT" -quiet > /tmp/x11vnc.log 2>&1 &
 	disown
 	sleep 1
 else
@@ -90,9 +103,12 @@ sleep 6
 if pgrep -f "godot4 -e" > /dev/null 2>&1; then
 	echo "== Godot editor is running. =="
 	if command -v gitpod > /dev/null 2>&1; then
-		echo "Opening noVNC in your browser..."
-		gitpod environment port preview "$NOVNC_PORT" || \
-			echo "Could not auto-open the browser — open the noVNC URL manually."
+		echo "Registering the noVNC preview port..."
+		NOVNC_URL="$(gitpod environment port open "$NOVNC_PORT" --name "Godot noVNC" --protocol http --admission creator_only)"
+		echo "Open: ${NOVNC_URL}/vnc.html?autoconnect=true&resize=scale"
+		if [[ -n "${BROWSER:-}" ]]; then
+			gitpod environment port preview "$NOVNC_PORT" || true
+		fi
 	else
 		echo "Open the noVNC URL manually (gitpod CLI not found)."
 	fi
