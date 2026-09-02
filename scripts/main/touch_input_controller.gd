@@ -4,8 +4,9 @@ class_name TouchInputController
 ##
 ## Single tap on an own unit selects just that unit (replacing any previous
 ## selection). Double-tap on an own unit (same unit, within a short time and
-## distance window) selects nearby own units of the same type. Double-tapping
-## empty ground clears the current selection. Tapping
+## distance window) selects nearby own units of the same type. A single tap
+## on empty ground moves the current selection; double-tapping empty ground
+## clears it. Tapping
 ## directly on an enemy unit or the enemy HQ instead sends the selection
 ## into a focus-fire order on that specific target, overriding automatic
 ## nearest-target acquisition. Tapping with no selection has no effect.
@@ -71,7 +72,8 @@ func _handle_tap(screen_position: Vector2) -> void:
 		return
 
 	# Enemy targets keep their focus-fire behavior when there is an active
-	# selection. Empty-map taps only deselect on the second tap of a double-tap.
+	# selection. The second empty-map tap of a double-tap clears selection;
+	# otherwise an empty-map tap issues the usual move command.
 	_last_tap_unit = null
 	_last_tap_time = -INF
 	var tapped_enemy := _find_enemy_unit_at(world_position)
@@ -85,6 +87,8 @@ func _handle_tap(screen_position: Vector2) -> void:
 		return
 	_last_empty_tap_screen_position = screen_position
 	_last_empty_tap_time = _now()
+	if not selected_units.is_empty():
+		_command_selected_units_to(world_position)
 
 
 func _is_double_tap(tapped_unit: Unit, screen_position: Vector2) -> bool:
