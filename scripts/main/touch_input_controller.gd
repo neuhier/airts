@@ -29,6 +29,7 @@ var _last_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_tap_time: float = -INF
 var _last_empty_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_empty_tap_time: float = -INF
+var _pending_move_id: int = 0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -61,6 +62,7 @@ func _handle_tap(screen_position: Vector2) -> void:
 	var tapped_unit := _find_own_unit_at(world_position)
 
 	if tapped_unit:
+		_cancel_pending_move()
 		if _is_double_tap(tapped_unit, screen_position):
 			_select_matching_units_around(tapped_unit)
 		else:
@@ -78,17 +80,19 @@ func _handle_tap(screen_position: Vector2) -> void:
 	_last_tap_time = -INF
 	var tapped_enemy := _find_enemy_unit_at(world_position)
 	if tapped_enemy and not selected_units.is_empty():
+		_cancel_pending_move()
 		_last_empty_tap_time = -INF
 		_command_selected_units_to_attack(tapped_enemy)
 		return
 	if _is_empty_map_double_tap(screen_position):
+		_cancel_pending_move()
 		_set_selection([])
 		_last_empty_tap_time = -INF
 		return
 	_last_empty_tap_screen_position = screen_position
 	_last_empty_tap_time = _now()
 	if not selected_units.is_empty():
-		_command_selected_units_to(world_position)
+		_queue_move_command(world_position, selected_units.duplicate())
 
 
 func _is_double_tap(tapped_unit: Unit, screen_position: Vector2) -> bool:
@@ -103,6 +107,25 @@ func _is_empty_map_double_tap(screen_position: Vector2) -> bool:
 	if _now() - _last_empty_tap_time > double_tap_window:
 		return false
 	return screen_position.distance_to(_last_empty_tap_screen_position) <= double_tap_max_distance
+
+
+func _cancel_pending_move() -> void:
+	_pending_move_id += 1
+
+
+func _queue_move_command(world_position: Vector2, units: Array[Unit]) -> void:
+	_cancel_pending_move()
+	var move_id := _pending_move_id
+	_send_move_after_double_tap_window(world_position, units, move_id)
+
+
+func _send_move_after_double_tap_window(world_position: Vector2, units: Array[Unit], move_id: int) -> void:
+	await get_tree().create_timer(double_tap_window).timeout
+	if move_id != _pending_move_id:
+		return
+	for unit in units:
+		if is_instance_valid(unit) and unit.is_alive():
+			unit.set_move_target(world_position)
 
 
 func _now() -> float:
