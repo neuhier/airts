@@ -1,0 +1,23 @@
+tasks:
+  validate-godot-project:
+    name: Validate Godot project
+    description: Import the Godot project and report scene or script loading errors.
+    command: godot4 --headless --path . --import
+    triggeredBy:
+      - manual
+      - postDevcontainerStart
+      - prebuild
+
+services:
+  godot-demo:
+    name: Godot noVNC
+    description: Godot editor and browser-accessible noVNC playtest environment.
+    commands:
+      start: |
+        gitpod environment port open 6080 --admission creator_only --name "Godot noVNC"
+        bash scripts/dev/restart_demo.sh
+        tail -f /tmp/godot.log
+      ready: pgrep -f "godot4 -e --path"
+    triggeredBy:
+      - manual
+      - postEnvironmentStart
