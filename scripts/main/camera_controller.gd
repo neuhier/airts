@@ -1,8 +1,10 @@
 extends Camera2D
 class_name CameraController
-## Pans the gameplay camera via WASD/arrow keys and click-and-drag /
-## touchscreen dragging simultaneously, clamped so the viewport never shows
-## past the map grid's pixel bounds (see `MapManager`).
+## Pans the gameplay camera via WASD/arrow keys and drag gestures, clamped so
+## the viewport never shows past the map grid's pixel bounds (see
+## `MapManager`). Both mouse buttons are supported because noVNC maps iPad
+## drags to left-mouse events, while desktop playtesting traditionally uses
+## right-mouse dragging.
 ##
 ## Zoom is expected to start at `Vector2(1.0, 1.0)` (set on the node in the
 ## editor / scene file) — this script only pans, it never changes zoom.
@@ -10,11 +12,11 @@ class_name CameraController
 @export var pan_speed: float = 600.0
 
 var _dragging: bool = false
-var _drag_button: int = MOUSE_BUTTON_RIGHT
+var _mouse_drag_buttons := PackedInt32Array([MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT])
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == _drag_button:
+	if event is InputEventMouseButton and event.button_index in _mouse_drag_buttons:
 		_dragging = event.pressed
 	elif event is InputEventScreenTouch:
 		_dragging = event.pressed

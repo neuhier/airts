@@ -4,8 +4,9 @@ class_name TouchInputController
 ##
 ## Single tap on an own unit selects just that unit (replacing any previous
 ## selection). Double-tap on an own unit (same unit, within a short time and
-## distance window) selects every own unit within a radius of the tapped
-## unit. Tapping empty ground moves the current selection there. Tapping
+## distance window) selects nearby own units of the same type. A single tap
+## on empty ground moves the current selection; double-tapping empty ground
+## clears it. Tapping
 ## directly on an enemy unit or the enemy HQ instead sends the selection
 ## into a focus-fire order on that specific target, overriding automatic
 ## nearest-target acquisition. Tapping with no selection has no effect.
@@ -26,6 +27,9 @@ var selected_units: Array[Unit] = []
 var _last_tap_unit: Unit = null
 var _last_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_tap_time: float = -INF
+var _last_empty_tap_screen_position: Vector2 = Vector2.ZERO
+var _last_empty_tap_time: float = -INF
+var _pending_move_id: int = 0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -58,30 +62,37 @@ func _handle_tap(screen_position: Vector2) -> void:
 	var tapped_unit := _find_own_unit_at(world_position)
 
 	if tapped_unit:
+		_cancel_pending_move()
 		if _is_double_tap(tapped_unit, screen_position):
-			_select_group_around(tapped_unit)
+			_select_matching_units_around(tapped_unit)
 		else:
 			_select_single(tapped_unit)
 		_last_tap_unit = tapped_unit
 		_last_tap_screen_position = screen_position
 		_last_tap_time = _now()
+		_last_empty_tap_time = -INF
 		return
 
-	# Tap did not land on an own unit — reset double-tap tracking either way.
+	# Enemy targets keep their focus-fire behavior when there is an active
+	# selection. The second empty-map tap of a double-tap clears selection;
+	# otherwise an empty-map tap issues the usual move command.
 	_last_tap_unit = null
 	_last_tap_time = -INF
-
-	if selected_units.is_empty():
-		return
-
-	# Focus fire: tapping directly on an enemy unit (or the enemy HQ)
-	# overrides automatic nearest-target acquisition — the selection
-	# attacks that specific target instead of moving to the tap point.
 	var tapped_enemy := _find_enemy_unit_at(world_position)
-	if tapped_enemy:
+	if tapped_enemy and not selected_units.is_empty():
+		_cancel_pending_move()
+		_last_empty_tap_time = -INF
 		_command_selected_units_to_attack(tapped_enemy)
-	else:
-		_command_selected_units_to(world_position)
+		return
+	if _is_empty_map_double_tap(screen_position):
+		_cancel_pending_move()
+		_set_selection([])
+		_last_empty_tap_time = -INF
+		return
+	_last_empty_tap_screen_position = screen_position
+	_last_empty_tap_time = _now()
+	if not selected_units.is_empty():
+		_queue_move_command(world_position, selected_units.duplicate())
 
 
 func _is_double_tap(tapped_unit: Unit, screen_position: Vector2) -> bool:
@@ -90,6 +101,31 @@ func _is_double_tap(tapped_unit: Unit, screen_position: Vector2) -> bool:
 	if _now() - _last_tap_time > double_tap_window:
 		return false
 	return screen_position.distance_to(_last_tap_screen_position) <= double_tap_max_distance
+
+
+func _is_empty_map_double_tap(screen_position: Vector2) -> bool:
+	if _now() - _last_empty_tap_time > double_tap_window:
+		return false
+	return screen_position.distance_to(_last_empty_tap_screen_position) <= double_tap_max_distance
+
+
+func _cancel_pending_move() -> void:
+	_pending_move_id += 1
+
+
+func _queue_move_command(world_position: Vector2, units: Array[Unit]) -> void:
+	_cancel_pending_move()
+	var move_id := _pending_move_id
+	_send_move_after_double_tap_window(world_position, units, move_id)
+
+
+func _send_move_after_double_tap_window(world_position: Vector2, units: Array[Unit], move_id: int) -> void:
+	await get_tree().create_timer(double_tap_window).timeout
+	if move_id != _pending_move_id:
+		return
+	for unit in units:
+		if is_instance_valid(unit) and unit.is_alive():
+			unit.set_move_target(world_position)
 
 
 func _now() -> float:
@@ -135,13 +171,14 @@ func _select_single(unit: Unit) -> void:
 	_set_selection([unit])
 
 
-func _select_group_around(center_unit: Unit) -> void:
+func _select_matching_units_around(center_unit: Unit) -> void:
 	var group: Array[Unit] = []
+	var unit_script: Script = center_unit.get_script()
 	for node in get_tree().get_nodes_in_group("team_player"):
 		if node is Headquarters:
 			continue
 		if node is Unit and node.is_alive():
-			if node.global_position.distance_to(center_unit.global_position) <= group_select_radius:
+			if node.get_script() == unit_script and node.global_position.distance_to(center_unit.global_position) <= group_select_radius:
 				group.append(node)
 	_set_selection(group)
 
