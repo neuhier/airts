@@ -4,10 +4,10 @@
 		"max_territory_area": 600000.0
 	},
 	"units": {
-		"melee": {"cost": 50.0, "duration": 4.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0},
-		"ranged": {"cost": 75.0, "duration": 6.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0},
-		"mobile": {"cost": 90.0, "duration": 8.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0},
-		"healer": {"cost": 80.0, "duration": 7.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0}
+		"melee": {"cost": 50.0, "duration": 4.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0, "vision_radius": 150.0},
+		"ranged": {"cost": 75.0, "duration": 6.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0, "vision_radius": 150.0},
+		"mobile": {"cost": 90.0, "duration": 8.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0, "vision_radius": 150.0},
+		"healer": {"cost": 80.0, "duration": 7.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0, "vision_radius": 150.0}
 	},
 	"buildings": {
 		"ranged_module": {"cost": 150.0, "label": "Schützen-Anbau"},

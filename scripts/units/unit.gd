@@ -37,6 +37,9 @@ const TEAM_COLORS := {
 ## is currently outside `attack_range`. Independent of `attack_range` so
 ## units can "aggro" from further away than they can actually hit.
 @export var aggro_range: float = 200.0
+## Circular world-space area this unit reveals for its team. Combat units
+## load this from BalanceManager by unit_class_id; HQs use their own fixed value.
+@export var vision_radius: float = 150.0
 
 ## Identifies this unit's class for the Upgrade-Labor system (e.g. "melee",
 ## "ranged", "mobile", "healer"). Set by subclasses in `_ready()` before
@@ -96,6 +99,7 @@ func _ready() -> void:
 		max_hp = BalanceManager.get_unit_value(unit_class_id, "max_hp", max_hp) as float
 		damage = BalanceManager.get_unit_value(unit_class_id, "damage", damage) as float
 		armor = BalanceManager.get_unit_value(unit_class_id, "armor", armor) as float
+		vision_radius = BalanceManager.get_unit_value(unit_class_id, "vision_radius", vision_radius) as float
 
 	_base_damage = damage
 	_base_max_hp = max_hp
@@ -130,7 +134,7 @@ var _on_mountain: bool = false
 func _physics_process(delta: float) -> void:
 	_apply_terrain_modifiers()
 
-	if manual_target and (not is_instance_valid(manual_target) or not manual_target.is_alive()):
+	if manual_target and (not is_instance_valid(manual_target) or not manual_target.is_alive() or not _is_target_visible(manual_target)):
 		manual_target = null
 
 	if manual_target:
@@ -259,12 +263,20 @@ func _find_nearest_enemy_in_range(radius: float) -> Unit:
 	var nearest: Unit = null
 	var nearest_dist := INF
 	for node in get_tree().get_nodes_in_group(_enemy_group()):
-		if node is Unit and node != self and node.is_alive():
+		if node is Unit and node != self and node.is_alive() and _is_target_visible(node):
 			var dist := global_position.distance_to(node.global_position)
 			if dist <= radius and dist < nearest_dist:
 				nearest = node
 				nearest_dist = dist
 	return nearest
+
+
+## Combat decisions obey the same team-specific visibility rules used by the
+## player presentation and enemy bot. Missing manager is treated as visible so
+## isolated/headless unit tests remain safe before Main has initialized.
+func _is_target_visible(target: Unit) -> bool:
+	var fog := get_tree().get_first_node_in_group(FogOfWarManager.GROUP_NAME) as FogOfWarManager
+	return fog == null or fog.is_position_visible_to(team, target.global_position)
 
 
 func _try_attack(delta: float) -> void:

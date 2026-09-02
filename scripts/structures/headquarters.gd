@@ -21,6 +21,7 @@ func _ready() -> void:
 	move_speed = 0.0
 	attack_range = 0.0
 	damage = 0.0
+	vision_radius = 225.0
 	if max_hp <= 0.0:
 		max_hp = 1000.0
 	super._ready()

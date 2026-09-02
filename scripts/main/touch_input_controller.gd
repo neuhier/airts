@@ -159,12 +159,17 @@ func _find_enemy_unit_at(world_position: Vector2) -> Unit:
 	var nearest: Unit = null
 	var nearest_dist := INF
 	for node in get_tree().get_nodes_in_group("team_enemy"):
-		if node is Unit and node.is_alive():
+		if node is Unit and node.is_alive() and _is_visible_to_player(node):
 			var dist := world_position.distance_to(node.global_position)
 			if dist <= selection_tap_radius and dist < nearest_dist:
 				nearest = node
 				nearest_dist = dist
 	return nearest
+
+
+func _is_visible_to_player(unit: Unit) -> bool:
+	var fog := get_tree().get_first_node_in_group(FogOfWarManager.GROUP_NAME) as FogOfWarManager
+	return fog == null or fog.is_position_visible_to(Unit.Team.PLAYER, unit.global_position)
 
 
 func _select_single(unit: Unit) -> void:
