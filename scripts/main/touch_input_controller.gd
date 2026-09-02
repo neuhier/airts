@@ -4,8 +4,8 @@ class_name TouchInputController
 ##
 ## Single tap on an own unit selects just that unit (replacing any previous
 ## selection). Double-tap on an own unit (same unit, within a short time and
-## distance window) selects nearby own units of the same type. Tapping empty
-## ground clears the current selection. Tapping
+## distance window) selects nearby own units of the same type. Double-tapping
+## empty ground clears the current selection. Tapping
 ## directly on an enemy unit or the enemy HQ instead sends the selection
 ## into a focus-fire order on that specific target, overriding automatic
 ## nearest-target acquisition. Tapping with no selection has no effect.
@@ -26,6 +26,8 @@ var selected_units: Array[Unit] = []
 var _last_tap_unit: Unit = null
 var _last_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_tap_time: float = -INF
+var _last_empty_tap_screen_position: Vector2 = Vector2.ZERO
+var _last_empty_tap_time: float = -INF
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -65,17 +67,24 @@ func _handle_tap(screen_position: Vector2) -> void:
 		_last_tap_unit = tapped_unit
 		_last_tap_screen_position = screen_position
 		_last_tap_time = _now()
+		_last_empty_tap_time = -INF
 		return
 
-	# A map tap with no unit is an explicit deselect action. Enemy targets keep
-	# their focus-fire behavior when there is an active selection.
+	# Enemy targets keep their focus-fire behavior when there is an active
+	# selection. Empty-map taps only deselect on the second tap of a double-tap.
 	_last_tap_unit = null
 	_last_tap_time = -INF
 	var tapped_enemy := _find_enemy_unit_at(world_position)
 	if tapped_enemy and not selected_units.is_empty():
+		_last_empty_tap_time = -INF
 		_command_selected_units_to_attack(tapped_enemy)
 		return
-	_set_selection([])
+	if _is_empty_map_double_tap(screen_position):
+		_set_selection([])
+		_last_empty_tap_time = -INF
+		return
+	_last_empty_tap_screen_position = screen_position
+	_last_empty_tap_time = _now()
 
 
 func _is_double_tap(tapped_unit: Unit, screen_position: Vector2) -> bool:
@@ -84,6 +93,12 @@ func _is_double_tap(tapped_unit: Unit, screen_position: Vector2) -> bool:
 	if _now() - _last_tap_time > double_tap_window:
 		return false
 	return screen_position.distance_to(_last_tap_screen_position) <= double_tap_max_distance
+
+
+func _is_empty_map_double_tap(screen_position: Vector2) -> bool:
+	if _now() - _last_empty_tap_time > double_tap_window:
+		return false
+	return screen_position.distance_to(_last_empty_tap_screen_position) <= double_tap_max_distance
 
 
 func _now() -> float:
