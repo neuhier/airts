@@ -4,8 +4,8 @@ class_name TouchInputController
 ##
 ## Single tap on an own unit selects just that unit (replacing any previous
 ## selection). Double-tap on an own unit (same unit, within a short time and
-## distance window) selects every own unit within a radius of the tapped
-## unit. Tapping empty ground moves the current selection there. Tapping
+## distance window) selects nearby own units of the same type. Tapping empty
+## ground clears the current selection. Tapping
 ## directly on an enemy unit or the enemy HQ instead sends the selection
 ## into a focus-fire order on that specific target, overriding automatic
 ## nearest-target acquisition. Tapping with no selection has no effect.
@@ -59,7 +59,7 @@ func _handle_tap(screen_position: Vector2) -> void:
 
 	if tapped_unit:
 		if _is_double_tap(tapped_unit, screen_position):
-			_select_group_around(tapped_unit)
+			_select_matching_units_around(tapped_unit)
 		else:
 			_select_single(tapped_unit)
 		_last_tap_unit = tapped_unit
@@ -67,21 +67,15 @@ func _handle_tap(screen_position: Vector2) -> void:
 		_last_tap_time = _now()
 		return
 
-	# Tap did not land on an own unit — reset double-tap tracking either way.
+	# A map tap with no unit is an explicit deselect action. Enemy targets keep
+	# their focus-fire behavior when there is an active selection.
 	_last_tap_unit = null
 	_last_tap_time = -INF
-
-	if selected_units.is_empty():
-		return
-
-	# Focus fire: tapping directly on an enemy unit (or the enemy HQ)
-	# overrides automatic nearest-target acquisition — the selection
-	# attacks that specific target instead of moving to the tap point.
 	var tapped_enemy := _find_enemy_unit_at(world_position)
-	if tapped_enemy:
+	if tapped_enemy and not selected_units.is_empty():
 		_command_selected_units_to_attack(tapped_enemy)
-	else:
-		_command_selected_units_to(world_position)
+		return
+	_set_selection([])
 
 
 func _is_double_tap(tapped_unit: Unit, screen_position: Vector2) -> bool:
@@ -135,13 +129,14 @@ func _select_single(unit: Unit) -> void:
 	_set_selection([unit])
 
 
-func _select_group_around(center_unit: Unit) -> void:
+func _select_matching_units_around(center_unit: Unit) -> void:
 	var group: Array[Unit] = []
+	var unit_script: Script = center_unit.get_script()
 	for node in get_tree().get_nodes_in_group("team_player"):
 		if node is Headquarters:
 			continue
 		if node is Unit and node.is_alive():
-			if node.global_position.distance_to(center_unit.global_position) <= group_select_radius:
+			if node.get_script() == unit_script and node.global_position.distance_to(center_unit.global_position) <= group_select_radius:
 				group.append(node)
 	_set_selection(group)
 
