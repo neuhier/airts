@@ -9,6 +9,15 @@ tasks:
       - prebuild
 
 services:
+  game-web-preview:
+    name: Game web preview
+    description: Direct browser playtest for tablets and phones.
+    commands:
+      start: bash scripts/dev/start_web_preview.sh
+      ready: curl --fail --silent http://127.0.0.1:8080/ > /dev/null
+    triggeredBy:
+      - manual
+      - postEnvironmentStart
   godot-demo:
     name: Godot noVNC
     description: Godot editor and browser-accessible noVNC playtest environment.
