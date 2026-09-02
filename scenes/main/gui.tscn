@@ -16,10 +16,12 @@ autostart = true
 
 [node name="Panel" type="PanelContainer" parent="."]
 mouse_filter = 1
-offset_left = 4.0
-offset_top = 4.0
-offset_right = 320.0
-offset_bottom = 356.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 250.0
+offset_bottom = 0.0
 
 [node name="MarginContainer" type="MarginContainer" parent="Panel"]
 theme_override_constants/margin_left = 6
@@ -36,6 +38,9 @@ text = "Ressourcen: 0"
 [node name="HQProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
 unique_name_in_owner = true
 text = "Melee (50) [x0]"
+
+[node name="QueueVisualizer" type="HBoxContainer" parent="Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
 
 [node name="RangedProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
 unique_name_in_owner = true

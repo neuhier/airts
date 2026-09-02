@@ -10,14 +10,33 @@ class_name Unit
 
 enum Team { PLAYER, ENEMY }
 
+## Single source of truth for each team's color, applied to every unit's
+## and HQ's `Silhouette` node (see `_ready()`) and reused at reduced alpha
+## by `TerritoryVisualizer` for the resource-area polygons, so a team's
+## color is consistent everywhere it appears.
+const TEAM_COLORS := {
+	Team.PLAYER: Color(0.15, 0.45, 0.95, 1.0),
+	Team.ENEMY: Color(0.9, 0.15, 0.15, 1.0),
+}
+
 @export var team: Team = Team.PLAYER
 @export var max_hp: float = 100.0
 @export var damage: float = 10.0
 @export var attack_range: float = 48.0
 @export var attack_cooldown: float = 1.0
 @export var move_speed: float = 150.0
+## Flat damage reduction applied to every incoming hit (see `take_damage()`).
+## Sourced from `BalanceManager` per unit_class_id in `_ready()`, same as
+## move_speed/max_hp/damage — this `@export` value is only the design-time
+## default/fallback.
+@export var armor: float = 0.0
 ## Distance to the move target below which the unit is considered "arrived".
 @export var arrival_threshold: float = 4.0
+## Radius within which an idle unit (no manual command in progress)
+## automatically notices and pursues the nearest enemy, even if that enemy
+## is currently outside `attack_range`. Independent of `attack_range` so
+## units can "aggro" from further away than they can actually hit.
+@export var aggro_range: float = 200.0
 
 ## Identifies this unit's class for the Upgrade-Labor system (e.g. "melee",
 ## "ranged", "mobile", "healer"). Set by subclasses in `_ready()` before
@@ -33,6 +52,14 @@ var move_target: Vector2
 var _base_damage: float
 var _base_max_hp: float
 var _base_move_speed: float
+
+## Current pathfound waypoints (world-space) toward whatever destination
+## `_move_towards()` was last called with. Recomputed whenever the
+## destination changes or the next waypoint is reached, so units route
+## around OBSTACLE cells and prefer GROUND over MOUNTAIN instead of
+## walking in a straight line through terrain.
+var _path: PackedVector2Array = PackedVector2Array()
+var _path_destination: Vector2 = Vector2.ZERO
 
 var _attack_timer: float = 0.0
 var _current_target: Unit = null
@@ -50,12 +77,30 @@ signal hp_changed(unit: Unit, hp: float, max_hp: float)
 
 @onready var _hp_bar: ProgressBar = get_node_or_null("HPBar")
 @onready var _selection_ring: Node2D = get_node_or_null("SelectionRing")
+@onready var _silhouette: Polygon2D = get_node_or_null("Silhouette")
 
 
 func _ready() -> void:
+	if _silhouette:
+		_silhouette.color = TEAM_COLORS[team]
+
+	# Balance-sourced stats: overwrites the @export design-time defaults
+	# with BalanceManager's data before _base_* is captured below, so both
+	# UpgradeManager's multipliers and the terrain speed/range modifiers
+	# end up relative to the balance-driven baseline rather than the old
+	# hardcoded one. Each @export value is passed through as that lookup's
+	# own fallback, so a missing/partial balance file degrades gracefully
+	# instead of zeroing out a stat.
+	if unit_class_id != "":
+		move_speed = BalanceManager.get_unit_value(unit_class_id, "move_speed", move_speed) as float
+		max_hp = BalanceManager.get_unit_value(unit_class_id, "max_hp", max_hp) as float
+		damage = BalanceManager.get_unit_value(unit_class_id, "damage", damage) as float
+		armor = BalanceManager.get_unit_value(unit_class_id, "armor", armor) as float
+
 	_base_damage = damage
 	_base_max_hp = max_hp
 	_base_move_speed = move_speed
+	_base_attack_range = attack_range
 
 	# Newly-produced units start with whatever multipliers have already
 	# been researched for their team/class (baseline application, see
@@ -71,7 +116,20 @@ func _ready() -> void:
 	_update_hp_bar()
 
 
+## Mountain terrain modifiers, applied/removed live as a unit crosses tile
+## boundaries (see `_apply_terrain_modifiers()`), always relative to the
+## unit's current design-time base stats — so they compose correctly with
+## `UpgradeManager` multipliers instead of overwriting them.
+const _MOUNTAIN_SPEED_MULTIPLIER := 0.6
+const _MOUNTAIN_ATTACK_RANGE_BONUS := 150.0
+
+var _base_attack_range: float
+var _on_mountain: bool = false
+
+
 func _physics_process(delta: float) -> void:
+	_apply_terrain_modifiers()
+
 	if manual_target and (not is_instance_valid(manual_target) or not manual_target.is_alive()):
 		manual_target = null
 
@@ -97,7 +155,14 @@ func _physics_process(delta: float) -> void:
 			velocity = Vector2.ZERO
 			_try_attack(delta)
 		else:
-			_move_towards_target()
+			# Nothing in attack range — check for a nearby enemy to
+			# automatically aggro and chase, otherwise idle at move_target.
+			var aggro_target := _find_nearest_enemy_in_range(aggro_range)
+			if aggro_target:
+				_current_target = aggro_target
+				_move_towards(aggro_target.global_position)
+			else:
+				_move_towards_target()
 	move_and_slide()
 
 
@@ -105,6 +170,15 @@ func _physics_process(delta: float) -> void:
 ## new world position. Cancels the current attack lock so the unit starts
 ## moving immediately. Also cancels any manual focus-fire target — a fresh
 ## move command always takes priority.
+## True while the unit has no player/AI-issued command in progress (no
+## active move order, no manual attack-target). Used by `EnemyAiController`
+## to find units it's free to group into an assault squad — a unit that's
+## mid-command or auto-chasing an aggro target isn't "idle" even though
+## nothing set an explicit state machine field for it.
+func is_idle() -> bool:
+	return not _commanded_move and manual_target == null
+
+
 func set_move_target(world_position: Vector2) -> void:
 	move_target = world_position
 	manual_target = null
@@ -153,7 +227,8 @@ func apply_stat_multiplier(stat: UpgradeManager.StatType, multiplier: float) -> 
 func take_damage(amount: float) -> void:
 	if not is_alive():
 		return
-	hp = max(hp - amount, 0.0)
+	var mitigated: float = max(amount - armor, 0.0)
+	hp = max(hp - mitigated, 0.0)
 	hp_changed.emit(self, hp, max_hp)
 	_update_hp_bar()
 	if hp <= 0.0:
@@ -174,12 +249,19 @@ func _enemy_group() -> String:
 
 ## Nearest living enemy within attack_range, or null if none is in reach.
 func _find_target_in_range() -> Unit:
+	return _find_nearest_enemy_in_range(attack_range)
+
+
+## Nearest living enemy within `radius`, or null if none is that close.
+## Shared by both auto-attack (`attack_range`) and auto-aggro
+## (`aggro_range`) since they're the same "closest enemy within X" query.
+func _find_nearest_enemy_in_range(radius: float) -> Unit:
 	var nearest: Unit = null
 	var nearest_dist := INF
 	for node in get_tree().get_nodes_in_group(_enemy_group()):
 		if node is Unit and node != self and node.is_alive():
 			var dist := global_position.distance_to(node.global_position)
-			if dist <= attack_range and dist < nearest_dist:
+			if dist <= radius and dist < nearest_dist:
 				nearest = node
 				nearest_dist = dist
 	return nearest
@@ -192,16 +274,46 @@ func _try_attack(delta: float) -> void:
 		_current_target.take_damage(damage)
 
 
+## Checks the terrain tile the unit currently stands on and toggles the
+## mountain speed penalty / range bonus accordingly. Cheap no-op when
+## nothing changed (`_on_mountain` only flips at tile-boundary crossings).
+func _apply_terrain_modifiers() -> void:
+	var is_mountain := MapManager.get_terrain_at(global_position) == MapManager.TerrainType.MOUNTAIN
+	if is_mountain == _on_mountain:
+		return
+	_on_mountain = is_mountain
+	if is_mountain:
+		move_speed = _base_move_speed * _MOUNTAIN_SPEED_MULTIPLIER
+		attack_range = _base_attack_range + _MOUNTAIN_ATTACK_RANGE_BONUS
+	else:
+		move_speed = _base_move_speed
+		attack_range = _base_attack_range
+
+
 func _move_towards_target() -> void:
 	_move_towards(move_target)
 
 
 func _move_towards(destination: Vector2) -> void:
-	var to_target := destination - global_position
-	if to_target.length() <= arrival_threshold:
+	if destination.distance_to(_path_destination) > arrival_threshold or _path.is_empty():
+		_path = MapManager.find_path(global_position, destination)
+		_path_destination = destination
+
+	# Drop waypoints the unit has already reached (including a stale first
+	# waypoint at/near its own current position).
+	while _path.size() > 0 and global_position.distance_to(_path[0]) <= arrival_threshold:
+		_path.remove_at(0)
+
+	if _path.is_empty():
 		velocity = Vector2.ZERO
 		return
-	velocity = to_target.normalized() * move_speed
+
+	var to_waypoint := _path[0] - global_position
+	if to_waypoint.length() <= arrival_threshold and _path.size() == 1 and destination.distance_to(_path_destination) <= arrival_threshold:
+		# Final waypoint reached and it matches the commanded destination.
+		velocity = Vector2.ZERO
+		return
+	velocity = to_waypoint.normalized() * move_speed
 
 
 func _update_hp_bar() -> void:
