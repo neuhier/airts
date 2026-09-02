@@ -68,7 +68,7 @@ fi
 # 3. VNC server
 if ! is_running "x11vnc -display $DISPLAY_NUM"; then
 	echo "Starting x11vnc on port $VNC_PORT..."
-	nohup setsid x11vnc -display "$DISPLAY_NUM" -forever -shared -nopw -rfbport "$VNC_PORT" -quiet > /tmp/x11vnc.log 2>&1 &
+	nohup setsid x11vnc -display "$DISPLAY_NUM" -noshm -forever -shared -nopw -rfbport "$VNC_PORT" -quiet > /tmp/x11vnc.log 2>&1 &
 	disown
 	sleep 1
 else
