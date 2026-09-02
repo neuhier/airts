@@ -3,9 +3,9 @@
 ## 1. Goal
 
 Implement team-specific fog of war for the player and the enemy bot. Terrain
-remains visible after the map is generated, but opposing units and structures
-are visible only while they are inside the observing team's current vision.
-This gives scouting and positioning tactical value without hiding map layout.
+starts hidden, remains visible in gray once explored, and is fully shown only
+inside the observing team's current vision. Opposing units and structures are
+visible only in currently visible areas.
 
 ## 2. Requirements
 
@@ -17,10 +17,12 @@ This gives scouting and positioning tactical value without hiding map layout.
   circular vision area for its own team.
 - A world position is currently visible when it lies within the vision radius
   of at least one alive friendly vision source.
-- Terrain is persistently explored: all generated terrain tiles remain drawn,
-  whether or not a team can currently see that part of the map.
-- Current visibility is dynamic. An enemy that leaves all friendly vision
-  areas is hidden again.
+- Terrain starts unexplored for each team. Unexplored tiles use an opaque
+  black overlay, concealing terrain, enemies, and structures.
+- A tile becomes permanently explored when it enters friendly vision. It uses
+  a gray overlay whenever it is explored but outside current friendly vision.
+- Current-vision tiles have no fog overlay. Enemies that leave all friendly
+  vision areas are hidden again, including on explored gray terrain.
 - This issue intentionally has no terrain/elevation line-of-sight blocking.
   Mountain and obstacle effects on vision belong to issue #19.
 
@@ -43,9 +45,11 @@ This gives scouting and positioning tactical value without hiding map layout.
 
 - Enemy combat units and the enemy headquarters are hidden when outside the
   player team's current vision and shown immediately when they enter it.
+- Unexplored terrain is opaque black; explored terrain outside current vision
+  is gray.
 - Player-owned units and the player headquarters remain visible at all times.
-- The map terrain, player HUD, selection indicators, and camera remain
-  visible and usable everywhere.
+- The player HUD, selection indicators, and camera remain visible and usable
+  everywhere.
 - Hidden enemies must not be selectable or focus-fire targets through
   `TouchInputController`.
 - Existing enemy units already carrying a manual target must safely abandon
@@ -87,8 +91,8 @@ func is_position_visible_to(team: Unit.Team, world_position: Vector2) -> bool
 
 The manager gathers alive nodes in the requesting team's group, reads each
 source's `vision_radius`, and returns true when any source covers the queried
-position. It refreshes presentation each frame or only when sources move; the
-chosen implementation must not duplicate visibility rules elsewhere.
+position. It stores explored tiles separately for each team and draws a player
+fog overlay: black when unexplored and gray when explored but not visible.
 
 ### 4.2 Unit and headquarters integration
 
@@ -96,6 +100,8 @@ chosen implementation must not duplicate visibility rules elsewhere.
   lookup by `unit_class_id`.
 - Give `Headquarters` a non-zero fixed vision radius of `225.0`.
 - Enemy-node visual visibility is set from the player team's visibility query.
+- A `Node2D` fog overlay draws above the map and world entities but below the
+  HUD: black for unexplored tiles and gray for explored-but-unseen tiles.
 - Visibility state must be safe during scene startup, death, and node removal.
 
 ### 4.3 Input and AI integration
@@ -114,15 +120,18 @@ chosen implementation must not duplicate visibility rules elsewhere.
 2. Add unit/HQ vision-radius properties and initialize them safely.
 3. Create `FogOfWarManager`, add it to `main.tscn`, and implement team-aware
    current-visibility queries from alive team-group members.
-4. Update enemy rendering so player-visible enemy nodes appear and all other
-   enemy nodes hide without hiding terrain or friendly UI.
-5. Gate player targeting, unit targeting, and enemy AI decisions through the
+4. Track explored tiles separately per team and render black unexplored tiles
+   plus gray explored-but-unseen tiles for the player.
+5. Update enemy rendering so player-visible enemy nodes appear and all other
+   enemy nodes hide without revealing them through gray fog.
+6. Gate player targeting, unit targeting, and enemy AI decisions through the
    shared manager.
-6. Add headless verification for visibility boundaries, multiple sources,
+7. Add headless verification for visibility boundaries, multiple sources,
    dead sources, hidden-target rejection, and bot perception; remove any
    temporary verification script before committing if project convention
    requires it.
-7. Run import validation and playtest player scouting, enemy disappearance,
+8. Run import validation and playtest black unexplored terrain, gray explored
+   terrain, player scouting, enemy disappearance,
    headquarters vision, and bot behavior.
 
 ## 6. Success Criteria
@@ -132,7 +141,8 @@ chosen implementation must not duplicate visibility rules elsewhere.
 2. A player unit or player HQ reveals nearby enemy units and the enemy HQ;
    they hide again after leaving all player vision sources.
 3. The same rules apply symmetrically to the enemy team for bot perception.
-4. Terrain remains visible everywhere and is not re-covered by fog.
+4. Every tile starts black, becomes fully visible while in current vision, and
+   becomes gray after exploration when it leaves current vision.
 5. Hidden enemies cannot be selected, focus-fired, auto-targeted, or newly
    targeted by the bot.
 6. Multiple allied sources combine their vision correctly; removing or
