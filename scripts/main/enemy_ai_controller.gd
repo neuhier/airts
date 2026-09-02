@@ -39,6 +39,9 @@ func _spend_resources() -> void:
 
 
 func _launch_hq_assault() -> void:
+	var player_hq := _visible_player_hq()
+	if player_hq == null:
+		return
 	var enemy_units := get_tree().get_nodes_in_group("team_enemy")
 
 	var idle_units: Array = []
@@ -48,4 +51,13 @@ func _launch_hq_assault() -> void:
 
 	if idle_units.size() >= ATTACK_SQUAD_SIZE:
 		for unit in idle_units:
-			unit.set_move_target(player_hq_position)
+			unit.set_move_target(player_hq.global_position)
+
+
+func _visible_player_hq() -> Headquarters:
+	var fog := get_tree().get_first_node_in_group(FogOfWarManager.GROUP_NAME) as FogOfWarManager
+	for node in get_tree().get_nodes_in_group("team_player"):
+		if node is Headquarters and node.is_alive():
+			if fog == null or fog.is_position_visible_to(Unit.Team.ENEMY, node.global_position):
+				return node
+	return null
