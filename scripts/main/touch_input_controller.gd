@@ -123,11 +123,13 @@ func _cancel_pending_move() -> void:
 func _queue_move_command(world_position: Vector2, units: Array[Unit]) -> void:
 	_cancel_pending_move()
 	var move_id := _pending_move_id
-	_send_move_after_double_tap_window(world_position, units, move_id)
+	# SceneTree owns this timer until it fires. Unlike an un-awaited coroutine,
+	# this callback survives reliably in browser exports.
+	var move_timer := get_tree().create_timer(double_tap_window)
+	move_timer.timeout.connect(_send_queued_move.bind(world_position, units, move_id))
 
 
-func _send_move_after_double_tap_window(world_position: Vector2, units: Array[Unit], move_id: int) -> void:
-	await get_tree().create_timer(double_tap_window).timeout
+func _send_queued_move(world_position: Vector2, units: Array[Unit], move_id: int) -> void:
 	if move_id != _pending_move_id:
 		return
 	for unit in units:
