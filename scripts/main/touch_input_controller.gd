@@ -19,10 +19,11 @@ class_name TouchInputController
 @export var double_tap_window: float = 0.3
 ## Max screen-space distance (px) between the two taps of a double-tap.
 @export var double_tap_max_distance: float = 20.0
-## Browser builds can emit both a touch event and an emulated mouse event for
-## one physical tap. Ignore that duplicate mouse event so it cannot be
-## mistaken for a second tap.
-@export var touch_mouse_duplicate_window: float = 0.15
+## Browser builds can emit more than one input event for one physical tap.
+## This short window is deliberately much smaller than `double_tap_window`,
+## so it suppresses duplicate events without swallowing a deliberate double
+## tap.
+@export var duplicate_tap_window: float = 0.08
 ## World-space radius around the double-tapped unit for group selection.
 @export var group_select_radius: float = 150.0
 
@@ -33,29 +34,28 @@ var _last_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_tap_time: float = -INF
 var _last_empty_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_empty_tap_time: float = -INF
-var _last_touch_screen_position: Vector2 = Vector2.ZERO
-var _last_touch_time: float = -INF
+var _last_processed_tap_screen_position: Vector2 = Vector2.ZERO
+var _last_processed_tap_time: float = -INF
 var _pending_move_id: int = 0
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	var tap_position: Variant = null
 	if event is InputEventScreenTouch and event.pressed:
-		_last_touch_screen_position = event.position
-		_last_touch_time = _now()
-		_handle_tap(event.position)
+		tap_position = event.position
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		tap_position = event.position
+	if tap_position == null or _is_duplicate_tap(tap_position):
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if _is_emulated_touch_mouse_event(event.position):
-			return
-		_handle_tap(event.position)
-		return
-	return
+	_last_processed_tap_screen_position = tap_position
+	_last_processed_tap_time = _now()
+	_handle_tap(tap_position)
 
 
-func _is_emulated_touch_mouse_event(screen_position: Vector2) -> bool:
-	if _now() - _last_touch_time > touch_mouse_duplicate_window:
+func _is_duplicate_tap(screen_position: Vector2) -> bool:
+	if _now() - _last_processed_tap_time > duplicate_tap_window:
 		return false
-	return screen_position.distance_to(_last_touch_screen_position) <= double_tap_max_distance
+	return screen_position.distance_to(_last_processed_tap_screen_position) <= double_tap_max_distance
 
 
 ## Converts a raw screen/viewport position into world space, taking the
