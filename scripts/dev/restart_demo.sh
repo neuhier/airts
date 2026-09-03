@@ -65,6 +65,10 @@ else
 	echo "fluxbox already running."
 fi
 
+# On a minimal container Fluxbox may open a modal fbsetbg wallpaper warning.
+# It is non-actionable for the demo and steals all input from the Godot editor.
+pkill -f '^xmessage.*fbsetbg:' || true
+
 # 3. VNC server
 if ! is_running "x11vnc -display $DISPLAY_NUM"; then
 	echo "Starting x11vnc on port $VNC_PORT..."

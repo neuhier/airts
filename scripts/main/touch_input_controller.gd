@@ -19,6 +19,11 @@ class_name TouchInputController
 @export var double_tap_window: float = 0.3
 ## Max screen-space distance (px) between the two taps of a double-tap.
 @export var double_tap_max_distance: float = 20.0
+## Browser builds can emit more than one input event for one physical tap.
+## This short window is deliberately much smaller than `double_tap_window`,
+## so it suppresses duplicate events without swallowing a deliberate double
+## tap.
+@export var duplicate_tap_window: float = 0.08
 ## World-space radius around the double-tapped unit for group selection.
 @export var group_select_radius: float = 150.0
 
@@ -29,30 +34,32 @@ var _last_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_tap_time: float = -INF
 var _last_empty_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_empty_tap_time: float = -INF
+var _last_processed_tap_screen_position: Vector2 = Vector2.ZERO
+var _last_processed_tap_time: float = -INF
 var _pending_move_id: int = 0
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	var tap_position: Variant = _tap_screen_position(event)
-	if tap_position == null:
+	var tap_position: Variant = null
+	if event is InputEventScreenTouch and event.pressed:
+		tap_position = event.position
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		tap_position = event.position
+	if tap_position == null or _is_duplicate_tap(tap_position):
 		return
+	_last_processed_tap_screen_position = tap_position
+	_last_processed_tap_time = _now()
 	_handle_tap(tap_position)
 
 
-## Returns the screen position of a completed tap/click, or null if the
-## event is not a "press" we care about. Supports both real touch input
-## (mobile/tablet) and mouse clicks (editor/desktop testing).
-func _tap_screen_position(event: InputEvent) -> Variant:
-	if event is InputEventScreenTouch and event.pressed:
-		return event.position
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		return event.position
-	return null
+func _is_duplicate_tap(screen_position: Vector2) -> bool:
+	if _now() - _last_processed_tap_time > duplicate_tap_window:
+		return false
+	return screen_position.distance_to(_last_processed_tap_screen_position) <= double_tap_max_distance
 
 
 ## Converts a raw screen/viewport position into world space, taking the
-## active Camera2D's position/zoom into account (canvas_transform already
-## reflects whichever camera is currently active).
+## active Camera2D's position/zoom into account.
 func _screen_to_world(screen_position: Vector2) -> Vector2:
 	return get_viewport().canvas_transform.affine_inverse() * screen_position
 
@@ -116,11 +123,13 @@ func _cancel_pending_move() -> void:
 func _queue_move_command(world_position: Vector2, units: Array[Unit]) -> void:
 	_cancel_pending_move()
 	var move_id := _pending_move_id
-	_send_move_after_double_tap_window(world_position, units, move_id)
+	# SceneTree owns this timer until it fires. Unlike an un-awaited coroutine,
+	# this callback survives reliably in browser exports.
+	var move_timer := get_tree().create_timer(double_tap_window)
+	move_timer.timeout.connect(_send_queued_move.bind(world_position, units, move_id))
 
 
-func _send_move_after_double_tap_window(world_position: Vector2, units: Array[Unit], move_id: int) -> void:
-	await get_tree().create_timer(double_tap_window).timeout
+func _send_queued_move(world_position: Vector2, units: Array[Unit], move_id: int) -> void:
 	if move_id != _pending_move_id:
 		return
 	for unit in units:
