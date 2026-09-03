@@ -16,7 +16,7 @@ fi
 
 # A service restart must replace the previous preview server so the browser
 # always receives the freshly exported game.
-pkill -f "^python3 -m http.server $PORT --bind 0.0.0.0$" || true
+pkill -f "web_preview_server.py $PORT" || true
 
 cd "$OUTPUT_DIR"
-exec python3 -m http.server "$PORT" --bind 0.0.0.0
+exec python3 "$PROJECT_DIR/scripts/dev/web_preview_server.py" "$PORT"
