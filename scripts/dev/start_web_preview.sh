@@ -14,9 +14,9 @@ if ! godot4 --headless --path "$PROJECT_DIR" --export-release Web "$OUTPUT_DIR/i
 	exit 1
 fi
 
-if command -v gitpod > /dev/null 2>&1; then
-	gitpod environment port open "$PORT" --admission creator_only --name "Game web preview" --protocol http
-fi
+# A service restart must replace the previous preview server so the browser
+# always receives the freshly exported game.
+pkill -f "^python3 -m http.server $PORT --bind 0.0.0.0$" || true
 
 cd "$OUTPUT_DIR"
 exec python3 -m http.server "$PORT" --bind 0.0.0.0
