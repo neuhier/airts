@@ -19,6 +19,10 @@ class_name TouchInputController
 @export var double_tap_window: float = 0.3
 ## Max screen-space distance (px) between the two taps of a double-tap.
 @export var double_tap_max_distance: float = 20.0
+## Browser builds can emit both a touch event and an emulated mouse event for
+## one physical tap. Ignore that duplicate mouse event so it cannot be
+## mistaken for a second tap.
+@export var touch_mouse_duplicate_window: float = 0.15
 ## World-space radius around the double-tapped unit for group selection.
 @export var group_select_radius: float = 150.0
 
@@ -29,30 +33,33 @@ var _last_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_tap_time: float = -INF
 var _last_empty_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_empty_tap_time: float = -INF
+var _last_touch_screen_position: Vector2 = Vector2.ZERO
+var _last_touch_time: float = -INF
 var _pending_move_id: int = 0
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	var tap_position: Variant = _tap_screen_position(event)
-	if tap_position == null:
-		return
-	_handle_tap(tap_position)
-
-
-## Returns the screen position of a completed tap/click, or null if the
-## event is not a "press" we care about. Supports both real touch input
-## (mobile/tablet) and mouse clicks (editor/desktop testing).
-func _tap_screen_position(event: InputEvent) -> Variant:
 	if event is InputEventScreenTouch and event.pressed:
-		return event.position
+		_last_touch_screen_position = event.position
+		_last_touch_time = _now()
+		_handle_tap(event.position)
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		return event.position
-	return null
+		if _is_emulated_touch_mouse_event(event.position):
+			return
+		_handle_tap(event.position)
+		return
+	return
+
+
+func _is_emulated_touch_mouse_event(screen_position: Vector2) -> bool:
+	if _now() - _last_touch_time > touch_mouse_duplicate_window:
+		return false
+	return screen_position.distance_to(_last_touch_screen_position) <= double_tap_max_distance
 
 
 ## Converts a raw screen/viewport position into world space, taking the
-## active Camera2D's position/zoom into account (canvas_transform already
-## reflects whichever camera is currently active).
+## active Camera2D's position/zoom into account.
 func _screen_to_world(screen_position: Vector2) -> Vector2:
 	return get_viewport().canvas_transform.affine_inverse() * screen_position
 
