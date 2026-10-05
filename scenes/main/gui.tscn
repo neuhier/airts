@@ -1,6 +1,17 @@
-[gd_scene load_steps=2 format=3 uid="uid://c0gui0overlay00001"]
+[gd_scene load_steps=13 format=3 uid="uid://c0gui0overlay00001"]
 
 [ext_resource type="Script" path="res://scripts/main/gui.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/menu-units.svg" id="2_vehicle"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/menu-buildings.svg" id="3_building"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/unit-melee.svg" id="4_melee"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/unit-ranged.svg" id="5_ranged"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/unit-mobile.svg" id="6_mobile"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/unit-healer.svg" id="7_healer"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/module-ranged.svg" id="8_module_ranged"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/module-mobile.svg" id="9_module_mobile"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/module-healer.svg" id="10_module_healer"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/module-upgrade.svg" id="11_module_upgrade"]
+[ext_resource type="Texture2D" path="res://assets/ui/nieobie/resource-coin.svg" id="12_coin"]
 
 [node name="GUI" type="Control"]
 script = ExtResource("1")
@@ -9,79 +20,188 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
+[node name="UnitMenuToggle" type="Button" parent="."]
+unique_name_in_owner = true
+offset_right = 56.0
+offset_bottom = 48.0
+z_index = 10
+flat = true
+icon = ExtResource("2_vehicle")
+expand_icon = false
+tooltip_text = "Unit production"
+
+[node name="ExtensionMenuToggle" type="Button" parent="."]
+unique_name_in_owner = true
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -56.0
+offset_bottom = 48.0
+z_index = 10
+flat = true
+icon = ExtResource("3_building")
+expand_icon = false
+tooltip_text = "Headquarters extensions"
+
 [node name="RefreshTimer" type="Timer" parent="."]
 unique_name_in_owner = true
 wait_time = 0.1
 autostart = true
 
-[node name="Panel" type="PanelContainer" parent="."]
-mouse_filter = 1
-anchor_right = 0.0
+[node name="ResourceDisplay" type="HBoxContainer" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 0.0
-offset_top = 0.0
-offset_right = 250.0
-offset_bottom = 0.0
+offset_left = -140.0
+offset_top = -40.0
+offset_right = -8.0
+offset_bottom = -8.0
+alignment = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="Panel"]
-theme_override_constants/margin_left = 6
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 6
-theme_override_constants/margin_bottom = 6
+[node name="CoinIcon" type="TextureRect" parent="ResourceDisplay"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+texture = ExtResource("12_coin")
+expand_mode = 1
+stretch_mode = 5
 
-[node name="VBox" type="VBoxContainer" parent="Panel/MarginContainer"]
-
-[node name="ResourceLabel" type="Label" parent="Panel/MarginContainer/VBox"]
+[node name="ResourceLabel" type="Label" parent="ResourceDisplay"]
 unique_name_in_owner = true
-text = "Ressourcen: 0"
+layout_mode = 2
+vertical_alignment = 1
+text = "0"
 
-[node name="HQProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
+[node name="QueueVisualizer" type="HBoxContainer" parent="."]
 unique_name_in_owner = true
-text = "Melee (50) [x0]"
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 8.0
+offset_right = 200.0
+offset_bottom = 42.0
+alignment = 1
 
-[node name="QueueVisualizer" type="HBoxContainer" parent="Panel/MarginContainer/VBox"]
-unique_name_in_owner = true
+[node name="UnitPanel" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 
-[node name="RangedProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
+[node name="HQProduceButton" type="Button" parent="UnitPanel"]
 unique_name_in_owner = true
-text = "Ranged: [Inaktiv]"
+offset_left = 110.0
+offset_top = 13.0
+offset_right = 182.0
+offset_bottom = 77.0
+flat = true
+icon = ExtResource("4_melee")
+expand_icon = false
+tooltip_text = "Melee unit"
+
+[node name="RangedProduceButton" type="Button" parent="UnitPanel"]
+unique_name_in_owner = true
+offset_left = 96.0
+offset_top = 52.0
+offset_right = 168.0
+offset_bottom = 116.0
+flat = true
+icon = ExtResource("5_ranged")
+expand_icon = false
 disabled = true
 
-[node name="MobileProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
+[node name="MobileProduceButton" type="Button" parent="UnitPanel"]
 unique_name_in_owner = true
-text = "Mobile: [Inaktiv]"
+offset_left = 69.0
+offset_top = 84.0
+offset_right = 141.0
+offset_bottom = 148.0
+flat = true
+icon = ExtResource("6_mobile")
+expand_icon = false
 disabled = true
 
-[node name="HealerProduceButton" type="Button" parent="Panel/MarginContainer/VBox"]
+[node name="HealerProduceButton" type="Button" parent="UnitPanel"]
 unique_name_in_owner = true
-text = "Healer: [Inaktiv]"
+offset_left = 33.0
+offset_top = 105.0
+offset_right = 105.0
+offset_bottom = 169.0
+flat = true
+icon = ExtResource("7_healer")
+expand_icon = false
 disabled = true
 
-[node name="HSeparator1" type="HSeparator" parent="Panel/MarginContainer/VBox"]
+[node name="ExtensionPanel" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 
-[node name="RangedModuleButton" type="Button" parent="Panel/MarginContainer/VBox"]
+[node name="RangedModuleButton" type="Button" parent="ExtensionPanel"]
 unique_name_in_owner = true
-text = "Schützen-Anbau bauen (150)"
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -182.0
+offset_top = 13.0
+offset_right = -110.0
+offset_bottom = 77.0
+flat = true
+icon = ExtResource("8_module_ranged")
+expand_icon = false
 
-[node name="MobileModuleButton" type="Button" parent="Panel/MarginContainer/VBox"]
+[node name="MobileModuleButton" type="Button" parent="ExtensionPanel"]
 unique_name_in_owner = true
-text = "Fuhrpark bauen (200)"
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -168.0
+offset_top = 52.0
+offset_right = -96.0
+offset_bottom = 116.0
+flat = true
+icon = ExtResource("9_module_mobile")
+expand_icon = false
 
-[node name="HealerModuleButton" type="Button" parent="Panel/MarginContainer/VBox"]
+[node name="HealerModuleButton" type="Button" parent="ExtensionPanel"]
 unique_name_in_owner = true
-text = "Heiler-Heiligtum bauen (175)"
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -141.0
+offset_top = 84.0
+offset_right = -69.0
+offset_bottom = 148.0
+flat = true
+icon = ExtResource("10_module_healer")
+expand_icon = false
 
-[node name="UpgradeLabButton" type="Button" parent="Panel/MarginContainer/VBox"]
+[node name="UpgradeLabButton" type="Button" parent="ExtensionPanel"]
 unique_name_in_owner = true
-text = "Upgrade-Labor bauen (150)"
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -105.0
+offset_top = 105.0
+offset_right = -33.0
+offset_bottom = 169.0
+flat = true
+icon = ExtResource("11_module_upgrade")
+expand_icon = false
 
-[node name="HSeparator2" type="HSeparator" parent="Panel/MarginContainer/VBox"]
+[node name="ResearchPanel" type="Control" parent="ExtensionPanel"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -242.0
+offset_top = 178.0
+offset_right = -8.0
+offset_bottom = 430.0
 
-[node name="ResearchScroll" type="ScrollContainer" parent="Panel/MarginContainer/VBox"]
-custom_minimum_size = Vector2(0, 140)
+[node name="ResearchScroll" type="ScrollContainer" parent="ExtensionPanel/ResearchPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 size_flags_vertical = 3
 
-[node name="ResearchButtonsContainer" type="GridContainer" parent="Panel/MarginContainer/VBox/ResearchScroll"]
+[node name="ResearchButtonsContainer" type="GridContainer" parent="ExtensionPanel/ResearchPanel/ResearchScroll"]
 unique_name_in_owner = true
 columns = 1
 size_flags_horizontal = 3

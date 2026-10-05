@@ -77,12 +77,15 @@ signal hp_changed(unit: Unit, hp: float, max_hp: float)
 
 @onready var _hp_bar: ProgressBar = get_node_or_null("HPBar")
 @onready var _selection_ring: Node2D = get_node_or_null("SelectionRing")
-@onready var _silhouette: Polygon2D = get_node_or_null("Silhouette")
+@onready var _silhouette: Node2D = get_node_or_null("Silhouette")
 
 
 func _ready() -> void:
 	if _silhouette:
-		_silhouette.color = TEAM_COLORS[team]
+		if _silhouette is Polygon2D:
+			_silhouette.color = TEAM_COLORS[team]
+		else:
+			_silhouette.modulate = TEAM_COLORS[team]
 
 	# Balance-sourced stats: overwrites the @export design-time defaults
 	# with BalanceManager's data before _base_* is captured below, so both

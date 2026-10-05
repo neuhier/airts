@@ -308,6 +308,25 @@ func get_hq_queue() -> Array[Dictionary]:
 	return hq_queue.queue
 
 
+## Flattened snapshot of every unit-production queue for the shared HUD strip.
+## Each entry includes its source queue and index so it can still be cancelled.
+func get_all_unit_queue_items() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for index in hq_queue.queue.size():
+		result.append({"queue_id": "melee", "index": index, "active": index == 0, "item": hq_queue.queue[index]})
+	for unit_class_id in module_queues:
+		var queue: TimedQueue = module_queues[unit_class_id]
+		for index in queue.queue.size():
+			result.append({"queue_id": unit_class_id, "index": index, "active": index == 0, "item": queue.queue[index]})
+	return result
+
+
+func cancel_unit_queue_item(queue_id: String, index: int) -> void:
+	var queue: TimedQueue = hq_queue if queue_id == "melee" else module_queues.get(queue_id)
+	if queue:
+		queue.cancel_queue_item(index)
+
+
 ## Cancels the HQ queue item at `index`, refunding its cost.
 func cancel_hq_queue_item(index: int) -> void:
 	hq_queue.cancel_queue_item(index)
