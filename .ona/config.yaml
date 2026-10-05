@@ -1,0 +1,13 @@
+services:
+  godot-game:
+    name: Godot game
+    triggeredBy:
+      - postEnvironmentStart
+    commands:
+      start: |
+        gitpod environment port open 6080 --admission creator_only --name "Godot game" --protocol http
+        bash scripts/dev/restart_demo.sh
+        while pgrep -f "godot4 -e" > /dev/null; do sleep 5; done
+        exit 1
+      ready: |
+        curl --fail --silent http://localhost:6080/vnc.html > /dev/null
