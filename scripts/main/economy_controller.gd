@@ -85,13 +85,12 @@ var lab_queue: TimedQueue = TimedQueue.new()
 
 var unlocked_modules: Dictionary = {}
 
-## Shared passive-income pool (resources/sec) split between teams by their
-## relative territory (convex-hull area of their own units).
-const TERRITORY_INCOME_POOL := 100.0
-## Fixed area cap a team's hull is normalized against — reaching/exceeding
-## this claims the team's full share of the pool. Roughly the visible
-## playfield (see project.godot 1000x800 minus the 250px left GUI sidebar).
-const MAX_TERRITORY_AREA := 600000.0
+## Shared passive-income pool (resources/sec) awarded according to how much
+## map area the team's living units and HQ can currently see.
+const VISIBLE_REGION_INCOME_POOL := 100.0
+## Visible-area cap that grants the full income pool.
+const MAX_VISIBLE_AREA := 600000.0
+const _VISION_REFRESH_INTERVAL := 0.15
 
 
 func _ready() -> void:
@@ -103,44 +102,44 @@ func _ready() -> void:
 	lab_queue.item_cancelled.connect(_on_research_item_cancelled)
 
 
-## Last computed territory income rate (resources/sec), exposed read-only
-## for the GUI's HUD readout — kept in sync every `_process()` tick rather
-## than recomputed on demand so the HUD never triggers an extra convex-hull
-## calculation of its own.
-var territory_income_rate: float = 0.0
+## Cached visibility income rate (resources/sec). Sight is refreshed at the
+## same cadence as FogOfWar instead of repeating line-of-sight work every frame.
+var visible_region_income_rate: float = 0.0
+var _vision_refresh_time := 0.0
 
 
 func _process(delta: float) -> void:
-	var units := get_tree().get_nodes_in_group("team_player" if team == Unit.Team.PLAYER else "team_enemy")
-	var area := get_units_polygon_area(units)
-	var max_area: float = BalanceManager.get_global_value("max_territory_area", MAX_TERRITORY_AREA)
-	var income_pool: float = BalanceManager.get_global_value("territory_income_pool", TERRITORY_INCOME_POOL)
-	var share: float = clamp(area / max_area, 0.0, 1.0)
-	territory_income_rate = income_pool * share
-	ResourceManager.add(team, territory_income_rate * delta)
+	_vision_refresh_time -= delta
+	if _vision_refresh_time <= 0.0:
+		_vision_refresh_time = _VISION_REFRESH_INTERVAL
+		_refresh_visible_region_income()
+	ResourceManager.add(team, visible_region_income_rate * delta)
 
 
-## Convex-hull area (Shoelace formula) of `units`' current positions. Fewer
-## than 3 units can't form a polygon, so territory income is 0 until a
-## team has at least a triangle of units alive.
-func get_units_polygon_area(units: Array) -> float:
-	if units.size() < 3:
-		return 0.0
+func _refresh_visible_region_income() -> void:
+	var group := "team_player" if team == Unit.Team.PLAYER else "team_enemy"
+	var observer_positions: Array[Vector2] = []
+	for node in get_tree().get_nodes_in_group(group):
+		if node is Unit and node.is_alive():
+			observer_positions.append(node.global_position)
 
-	var points: PackedVector2Array = []
-	for u in units:
-		if u is Unit and u.is_alive():
-			points.append(u.global_position)
-	if points.size() < 3:
-		return 0.0
-
-	var hull := Geometry2D.convex_hull(points)
-	var area := 0.0
-	var num_vertices := hull.size()
-	for i in range(num_vertices):
-		var j := (i + 1) % num_vertices
-		area += hull[i].cross(hull[j])
-	return abs(area) * 0.5
+	var base_radius := float(BalanceManager.get_global_value("base_vision_radius", VisionMap.DEFAULT_BASE_VISION_RADIUS))
+	var mountain_multiplier := float(BalanceManager.get_global_value(
+		"mountain_vision_bonus", VisionMap.DEFAULT_MOUNTAIN_VISION_MULTIPLIER
+	))
+	var visible_tiles := VisionMap.calculate_visible_world_positions(
+		observer_positions,
+		MapManager.map_grid,
+		maxf(base_radius, 0.0),
+		maxf(mountain_multiplier, 1.0)
+	)
+	var visible_area := VisionMap.get_visible_world_area(visible_tiles)
+	var legacy_max_area: float = BalanceManager.get_global_value("max_territory_area", MAX_VISIBLE_AREA)
+	var max_area: float = BalanceManager.get_global_value("max_visible_area", legacy_max_area)
+	var legacy_income_pool: float = BalanceManager.get_global_value("territory_income_pool", VISIBLE_REGION_INCOME_POOL)
+	var income_pool: float = BalanceManager.get_global_value("visible_region_income_pool", legacy_income_pool)
+	var share := clampf(visible_area / maxf(max_area, 1.0), 0.0, 1.0)
+	visible_region_income_rate = income_pool * share
 
 
 ## Must be called right after instantiation (no constructor args in Godot
@@ -293,10 +292,10 @@ func get_resources() -> float:
 
 
 ## Total passive income/sec: flat HQ income + this team's current
-## territory share. Used by the HUD's real-time income readout.
+## currently visible region. Used by the HUD's real-time income readout.
 func get_total_income_rate() -> float:
 	var hq_income := hq.income_per_second if hq and hq.is_alive() else 0.0
-	return hq_income + territory_income_rate
+	return hq_income + visible_region_income_rate
 
 
 func get_hq_queue_size() -> int:

@@ -3,8 +3,7 @@ class_name MapVisualizer
 ## Draws `MapManager.map_grid` as flat-colored tiles so the procedural
 ## terrain is actually visible (previously data-only). Drawn once — the
 ## grid never changes after `MapManager.generate()` runs — so this uses
-## `_ready()` + a single `queue_redraw()` rather than redrawing every frame
-## like `TerritoryVisualizer` (whose underlying data changes constantly).
+## `_ready()` + a single `queue_redraw()`.
 
 @export var ground_color := Color(0.18, 0.35, 0.16, 1.0)
 @export var mountain_color := Color(0.45, 0.42, 0.38, 1.0)

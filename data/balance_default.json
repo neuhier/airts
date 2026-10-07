@@ -1,7 +1,10 @@
 {
 	"global": {
-		"territory_income_pool": 100.0,
-		"max_territory_area": 600000.0
+		"game_speed": 0.5,
+		"visible_region_income_pool": 1.0,
+		"max_visible_area": 600000.0,
+		"base_vision_radius": 6.0,
+		"mountain_vision_bonus": 1.75
 	},
 	"units": {
 		"melee": {"cost": 50.0, "duration": 4.0, "move_speed": 150.0, "max_hp": 100.0, "damage": 10.0, "armor": 0.0},

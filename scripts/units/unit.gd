@@ -11,9 +11,8 @@ class_name Unit
 enum Team { PLAYER, ENEMY }
 
 ## Single source of truth for each team's color, applied to every unit's
-## and HQ's `Silhouette` node (see `_ready()`) and reused at reduced alpha
-## by `TerritoryVisualizer` for the resource-area polygons, so a team's
-## color is consistent everywhere it appears.
+## and HQ's `Silhouette` node (see `_ready()`), so a team's color is
+## consistent everywhere it appears.
 const TEAM_COLORS := {
 	Team.PLAYER: Color(0.15, 0.45, 0.95, 1.0),
 	Team.ENEMY: Color(0.9, 0.15, 0.15, 1.0),

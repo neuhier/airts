@@ -7,6 +7,8 @@ extends Node
 
 const TEMPLATE_PATH := "res://data/balance_default.json"
 const USER_PATH := "user://balance.json"
+const DEFAULT_GAME_SPEED := 1.0
+const MIN_GAME_SPEED := 0.01
 
 var _data: Dictionary = {}
 
@@ -14,6 +16,24 @@ var _data: Dictionary = {}
 func _ready() -> void:
 	_ensure_user_file_exists()
 	_load_from_user_file()
+	_apply_global_settings()
+
+
+## Applies settings that affect the whole simulation. Engine.time_scale
+## scales physics, process delta, timers, animations, production, combat,
+## and income together, making `game_speed` a true global speed control.
+func _apply_global_settings() -> void:
+	var configured_speed: Variant = get_global_value("game_speed", DEFAULT_GAME_SPEED)
+	if typeof(configured_speed) != TYPE_FLOAT and typeof(configured_speed) != TYPE_INT:
+		push_warning("BalanceManager: global.game_speed must be a number; using %.2f." % DEFAULT_GAME_SPEED)
+		Engine.time_scale = DEFAULT_GAME_SPEED
+		return
+
+	var game_speed := float(configured_speed)
+	if game_speed < MIN_GAME_SPEED:
+		push_warning("BalanceManager: global.game_speed must be at least %.2f; clamping %.2f." % [MIN_GAME_SPEED, game_speed])
+		game_speed = MIN_GAME_SPEED
+	Engine.time_scale = game_speed
 
 
 ## Copies the packed template into user:// on first run only. `res://` is
