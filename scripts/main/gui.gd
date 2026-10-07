@@ -101,6 +101,10 @@ func bind_economy(p_economy: EconomyController) -> void:
 	_refresh_build_queue()
 
 
+func bind_world(camera: CameraController, fog: FogOfWar) -> void:
+	%MiniMap.bind_world(camera, fog)
+
+
 func _build_research_buttons() -> void:
 	for research_id in EconomyController.RESEARCH_CONFIG:
 		var button := Button.new()

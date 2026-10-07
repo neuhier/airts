@@ -13,6 +13,10 @@ var _dragging: bool = false
 var _drag_button: int = MOUSE_BUTTON_RIGHT
 
 
+func _ready() -> void:
+	_clamp_to_map_bounds()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == _drag_button:
 		_dragging = event.pressed
@@ -34,6 +38,11 @@ func _process(delta: float) -> void:
 	if input_dir != Vector2.ZERO:
 		position += input_dir.normalized() * pan_speed * delta / zoom
 		_clamp_to_map_bounds()
+
+
+func center_on_world_position(world_position: Vector2) -> void:
+	position = world_position
+	_clamp_to_map_bounds()
 
 
 ## Keeps the camera's center within the map's pixel rectangle, accounting

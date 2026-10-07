@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://c0gui0overlay00001"]
+[gd_scene load_steps=14 format=3 uid="uid://c0gui0overlay00001"]
 
 [ext_resource type="Script" path="res://scripts/main/gui.gd" id="1"]
 [ext_resource type="Texture2D" path="res://assets/ui/nieobie/menu-units.svg" id="2_vehicle"]
@@ -12,6 +12,7 @@
 [ext_resource type="Texture2D" path="res://assets/ui/nieobie/module-healer.svg" id="10_module_healer"]
 [ext_resource type="Texture2D" path="res://assets/ui/nieobie/module-upgrade.svg" id="11_module_upgrade"]
 [ext_resource type="Texture2D" path="res://assets/ui/nieobie/resource-coin.svg" id="12_coin"]
+[ext_resource type="PackedScene" path="res://scenes/main/MiniMap.tscn" id="13_minimap"]
 
 [node name="GUI" type="Control"]
 script = ExtResource("1")
@@ -80,6 +81,18 @@ offset_top = 8.0
 offset_right = 200.0
 offset_bottom = 42.0
 alignment = 1
+
+[node name="MiniMap" parent="." instance=ExtResource("13_minimap")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = -195.0
+offset_right = 130.0
+offset_bottom = 0.0
+grow_vertical = 0
 
 [node name="UnitPanel" type="Control" parent="."]
 layout_mode = 1

@@ -10,6 +10,8 @@ extends Node2D
 @onready var _player_hq: Headquarters = get_node_or_null("PlayerHQ")
 @onready var _enemy_hq: Headquarters = get_node_or_null("EnemyHQ")
 @onready var _gui: GameGUI = get_node_or_null("GUILayer/GUI")
+@onready var _camera: CameraController = get_node_or_null("Camera2D")
+@onready var _fog: FogOfWar = get_node_or_null("FogOfWar")
 
 var _match_over: bool = false
 var player_economy: EconomyController = null
@@ -17,6 +19,8 @@ var enemy_economy: EconomyController = null
 
 
 func _ready() -> void:
+	if _gui and _camera and _fog:
+		_gui.bind_world(_camera, _fog)
 	if _player_hq:
 		_player_hq.hq_destroyed.connect(_on_hq_destroyed)
 	if _enemy_hq:
