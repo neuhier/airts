@@ -11,6 +11,8 @@ class_name TouchInputController
 ## nearest-target acquisition. Tapping with no selection has no effect.
 ## Enemy units and both HQs are never selectable or directly movable
 ## (though the enemy HQ can be focus-fired, see above).
+## Right-click clears the current selection. On touchscreens, a stationary
+## two-finger tap performs the same action without issuing a move command.
 
 ## Screen-space hit radius (world units) for "did this tap land on a unit".
 @export var selection_tap_radius: float = 24.0
@@ -20,30 +22,105 @@ class_name TouchInputController
 @export var double_tap_max_distance: float = 20.0
 ## World-space radius around the double-tapped unit for group selection.
 @export var group_select_radius: float = 150.0
+## Maximum duration and per-finger movement for a two-finger tap.
+@export var two_finger_tap_window: float = 0.45
+@export var touch_tap_max_distance: float = 24.0
 
 var selected_units: Array[Unit] = []
 
 var _last_tap_unit: Unit = null
 var _last_tap_screen_position: Vector2 = Vector2.ZERO
 var _last_tap_time: float = -INF
+var _active_touches: Dictionary = {}
+var _touch_start_positions: Dictionary = {}
+var _touch_gesture_started_at := 0.0
+var _touch_gesture_max_count := 0
+var _touch_gesture_moved := false
+var _released_single_tap := false
+var _released_single_position := Vector2.ZERO
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+		if not selected_units.is_empty():
+			_clear_selection()
+			get_viewport().set_input_as_handled()
+		return
+	if event is InputEventScreenTouch:
+		_track_touch(event)
+	elif event is InputEventScreenDrag:
+		_track_touch_drag(event)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	var tap_position: Variant = _tap_screen_position(event)
-	if tap_position == null:
-		return
-	_handle_tap(tap_position)
-
-
-## Returns the screen position of a completed tap/click, or null if the
-## event is not a "press" we care about. Supports both real touch input
-## (mobile/tablet) and mouse clicks (editor/desktop testing).
-func _tap_screen_position(event: InputEvent) -> Variant:
-	if event is InputEventScreenTouch and event.pressed:
-		return event.position
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		return event.position
-	return null
+		_handle_tap(event.position)
+	elif event is InputEventScreenTouch and not event.pressed and _released_single_tap:
+		_released_single_tap = false
+		_handle_tap(_released_single_position)
+
+
+func _track_touch(event: InputEventScreenTouch) -> void:
+	if event.pressed:
+		if _active_touches.is_empty():
+			_touch_gesture_started_at = _now()
+			_touch_gesture_max_count = 0
+			_touch_gesture_moved = false
+			_touch_start_positions.clear()
+			_released_single_tap = false
+		_active_touches[event.index] = event.position
+		_touch_start_positions[event.index] = event.position
+		_touch_gesture_max_count = maxi(_touch_gesture_max_count, _active_touches.size())
+		if _touch_gesture_max_count >= 2:
+			_cancel_camera_touch_drag()
+			get_viewport().set_input_as_handled()
+		return
+
+	if _active_touches.has(event.index):
+		_active_touches[event.index] = event.position
+		_update_touch_movement(event.index, event.position)
+	var was_multi_touch := _touch_gesture_max_count >= 2
+	_active_touches.erase(event.index)
+	if was_multi_touch:
+		get_viewport().set_input_as_handled()
+		if _active_touches.is_empty():
+			if _touch_gesture_max_count == 2 and not _touch_gesture_moved \
+					and _now() - _touch_gesture_started_at <= two_finger_tap_window:
+				_clear_selection()
+			_reset_touch_gesture()
+	elif _active_touches.is_empty():
+		_released_single_tap = not _touch_gesture_moved
+		_released_single_position = event.position
+
+
+func _track_touch_drag(event: InputEventScreenDrag) -> void:
+	if not _active_touches.has(event.index):
+		return
+	_active_touches[event.index] = event.position
+	_update_touch_movement(event.index, event.position)
+	if _touch_gesture_max_count >= 2:
+		_cancel_camera_touch_drag()
+		get_viewport().set_input_as_handled()
+
+
+func _update_touch_movement(index: int, position: Vector2) -> void:
+	var start: Vector2 = _touch_start_positions.get(index, position)
+	if start.distance_to(position) > touch_tap_max_distance:
+		_touch_gesture_moved = true
+
+
+func _reset_touch_gesture() -> void:
+	_active_touches.clear()
+	_touch_start_positions.clear()
+	_touch_gesture_max_count = 0
+	_touch_gesture_moved = false
+	_released_single_tap = false
+
+
+func _cancel_camera_touch_drag() -> void:
+	var camera := get_viewport().get_camera_2d()
+	if camera is CameraController:
+		camera.cancel_touch_drag()
 
 
 ## Converts a raw screen/viewport position into world space, taking the
@@ -153,6 +230,11 @@ func _set_selection(units: Array[Unit]) -> void:
 	selected_units = units
 	for unit in selected_units:
 		unit.set_selected(true)
+
+
+func _clear_selection() -> void:
+	var empty_selection: Array[Unit] = []
+	_set_selection(empty_selection)
 
 
 func _command_selected_units_to(world_position: Vector2) -> void:

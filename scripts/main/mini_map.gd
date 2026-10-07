@@ -110,7 +110,7 @@ func _on_map_gui_input(event: InputEvent) -> void:
 	var local_position: Variant = null
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		local_position = event.position
-	elif event is InputEventScreenTouch and event.pressed:
+	elif event is InputEventScreenTouch and not event.pressed:
 		local_position = event.position
 	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
 		local_position = event.position

@@ -45,6 +45,10 @@ func center_on_world_position(world_position: Vector2) -> void:
 	_clamp_to_map_bounds()
 
 
+func cancel_touch_drag() -> void:
+	_dragging = false
+
+
 ## Keeps the camera's center within the map's pixel rectangle, accounting
 ## for the current viewport size and zoom so the visible area never shows
 ## territory outside the generated grid.
